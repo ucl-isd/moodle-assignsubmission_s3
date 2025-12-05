@@ -14,19 +14,63 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\event;
+
+use core\event\base;
+use moodle_url;
+
 /**
- * TODO Add description
+ * Submission updated event.
  *
- * @package   TODO Add package name
+ * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class submission_updated extends \mod_assign\event\submission_created {
 
-namespace assignsubmission_s3\event;
+    /**
+     * Init method.
+     *
+     * @return void
+     */
+    protected function init(): void {
+        parent::init();
+        $this->data['objecttable'] = 'assignsubmission_s3';
+    }
 
-use mod_assign\event\submission_created;
+    /**
+     * Get URL related to the action.
+     *
+     * @return moodle_url
+     */
+    public function get_url(): moodle_url {
+        return new moodle_url('/mod/assign/view.php', ['id' => $this->contextinstanceid]);
+    }
 
-class submission_updated extends submission_created {
+    /**
+     * Return description of what happened.
+     *
+     * @return string
+     */
+    public function get_description(): string {
+        $context = [
+            'userid' => $this->userid,
+            'contextinstanceid' => $this->contextinstanceid,
+        ];
+        if (!empty($this->other['groupid'])) {
+            $context['groupid'] = $this->other['groupid'];
+            return get_string('event:submission_updated:description_group', 'assignsubmission_s3', $context);
+        } else {
+            return get_string('event:submission_updated:description', 'assignsubmission_s3', $context);
+        }
+    }
 
-}
+    /**
+     * Return the object mapping for the event.
+     *
+     * @return int
+     */
+    public static function get_objectid_mapping(): int {
+        return base::NOT_MAPPED;
+    }}

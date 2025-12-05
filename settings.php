@@ -69,12 +69,11 @@ $settings->add(
 );
 
 $settings->add(
-    new admin_setting_configtext(
+    new admin_setting_configpasswordunmask(
         'assignsubmission_s3/secret',
         new lang_string('setting:secret', 'assignsubmission_s3'),
         new lang_string('setting:secret_help', 'assignsubmission_s3'),
         '',
-        PARAM_TEXT,
     )
 );
 
@@ -132,16 +131,16 @@ $settings->add(
         1,
     )
 );
-
-$settings->add(
-    new admin_setting_configtext(
-        'assignsubmission_s3/maxfiles',
-        new lang_string('setting:maxfiles', 'assignsubmission_s3'),
-        new lang_string('setting:maxfiles_help', 'assignsubmission_s3'),
-        assign_submission_s3::DEFAULT_MAXFILES,
-        PARAM_INT,
-    )
-);
+//
+//$settings->add(
+//    new admin_setting_configtext(
+//        'assignsubmission_s3/maxfiles',
+//        new lang_string('setting:maxfiles', 'assignsubmission_s3'),
+//        new lang_string('setting:maxfiles_help', 'assignsubmission_s3'),
+//        assign_submission_s3::DEFAULT_MAXFILES,
+//        PARAM_INT,
+//    )
+//);
 
 $settings->add(
     new admin_setting_filetypes(

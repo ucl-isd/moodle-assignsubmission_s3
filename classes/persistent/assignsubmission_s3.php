@@ -26,6 +26,7 @@
 namespace assignsubmission_s3\persistent;
 
 use core\persistent;
+use core\uuid;
 
 class assignsubmission_s3 extends persistent {
 
@@ -58,16 +59,38 @@ class assignsubmission_s3 extends persistent {
             ],
             'status' => [
                 'type' => PARAM_INT,
-                'default' => self::STATUS_LOCAL,
+                'default' => self::STATUS_REMOTE_STANDARD,
             ],
             'location' => [
                 'type' => PARAM_TEXT,
-                'default' => '',
+                'null' => NULL_ALLOWED,
+                'default' => null,
             ],
             'expiry' => [
                 'type' => PARAM_INT,
+                'null' => NULL_ALLOWED,
                 'default' => null,
             ],
+            'uuid' => [
+                'type' => PARAM_TEXT,
+                'default' => function() {
+                    return self::generate_uuid();
+                }
+            ],
         ];
+    }
+
+    /**
+     * Get a UUID that has not been used in the table already.
+     * The chances of generating one that has already been used is infinitesimal, but never zero.
+     *
+     * @return string
+     */
+    public static function generate_uuid(): string {
+        $uuid = uuid::generate();
+        while (self::get_record(['uuid' => $uuid]) !== false) {
+            $uuid = uuid::generate();
+        }
+        return $uuid;
     }
 }

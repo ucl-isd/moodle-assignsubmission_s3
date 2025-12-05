@@ -16,27 +16,32 @@
 
 namespace assignsubmission_s3\event;
 
-use core\event\base;
 use moodle_url;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
- * Submission created event.
+ * Assessable uploaded event.
  *
  * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class submission_created extends \mod_assign\event\submission_created {
+class assessable_uploaded extends \core\event\assessable_uploaded {
 
     /**
-     * Init method.
+     * Returns description of what happened.
      *
-     * @return void
+     * @return string
      */
-    protected function init(): void {
-        parent::init();
-        $this->data['objecttable'] = 'assignsubmission_s3';
+    public function get_description(): string {
+        $context = [
+            'userid' => $this->userid,
+            'contextinstanceid' => $this->contextinstanceid,
+            'objectid' => $this->objectid,
+        ];
+        return get_string('event:assessable_uploaded:description', 'assignsubmission_s3', $context);
     }
 
     /**
@@ -49,29 +54,21 @@ class submission_created extends \mod_assign\event\submission_created {
     }
 
     /**
-     * Return description of what happened.
+     * Init method.
      *
-     * @return string
+     * @return void
      */
-    public function get_description(): string {
-        $context = [
-            'userid' => $this->userid,
-            'contextinstanceid' => $this->contextinstanceid,
-        ];
-        if (!empty($this->other['groupid'])) {
-            $context['groupid'] = $this->other['groupid'];
-            return get_string('event:submission_created:description_group', 'assignsubmission_s3', $context);
-        } else {
-            return get_string('event:submission_created:description', 'assignsubmission_s3', $context);
-        }
+    protected function init(): void {
+        parent::init();
+        $this->data['objecttable'] = 'assign_submission';
     }
 
     /**
      * Return the object mapping for the event.
      *
-     * @return int
+     * @return array
      */
-    public static function get_objectid_mapping(): int {
-        return base::NOT_MAPPED;
+    public static function get_objectid_mapping(): array {
+        return ['db' => 'assign_submission', 'restore' => 'submission'];
     }
 }

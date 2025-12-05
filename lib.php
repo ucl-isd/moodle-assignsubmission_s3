@@ -23,6 +23,9 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use assignsubmission_s3\persistent\assignsubmission_s3;
+use core\session\manager;
+
 /**
  * Serves S3 assignment submissions.
  *
@@ -41,8 +44,69 @@ function assignsubmission_s3_pluginfile(
     context $context,
     $filearea,
     $args,
-    $forcedownload,
-    array $options = [],
 ) {
+    global $CFG, $DB;
 
+    if ($context->contextlevel != CONTEXT_MODULE) {
+        send_file_not_found();
+    }
+
+    require_login($course, false, $cm);
+    $itemid = (int)array_shift($args);
+    $submission = $DB->get_record('assign_submission',
+        ['id' => $itemid],
+        'userid, assignment, groupid',
+        MUST_EXIST
+    );
+    $userid = $submission->userid;
+    $groupid = $submission->groupid;
+
+    require_once($CFG->dirroot . '/mod/assign/locallib.php');
+
+    $assign = new assign($context, $cm, $course);
+
+    if ($assign->get_instance()->id != $submission->assignment) {
+        send_file_not_found();
+    }
+
+    if ($assign->get_instance()->teamsubmission &&
+        !$assign->can_view_group_submission($groupid)) {
+        send_file_not_found();
+    }
+
+    if (!$assign->get_instance()->teamsubmission &&
+        !$assign->can_view_submission($userid)) {
+        send_file_not_found();
+    }
+
+    $relativepath = implode('/', $args);
+
+    $fullpath = "/{$context->id}/assignsubmission_s3/$filearea/$itemid/$relativepath";
+
+    $fs = get_file_storage();
+    if (!($file = $fs->get_file_by_hash(sha1($fullpath))) || $file->is_directory()) {
+        send_file_not_found();
+    }
+
+    $s3submission = assignsubmission_s3::get_record([
+        'usermodified' => $userid,
+        'assignment' => $cm->id,
+        'submission' => $itemid,
+    ]);
+    if (!$s3submission) {
+        send_file_not_found();
+    }
+
+    $s3 = new \assignsubmission_s3\s3();
+    $object = new stdClass();
+    $object->name = $file->get_filename();
+    $object->mimetype = $file->get_mimetype();
+    $object->uuid = $s3submission->get('uuid');
+    $presignedurl = $s3->retrieve_object($object)->getUri();
+
+    // Unlock session during file serving.
+    manager::write_close();
+
+    header("Location: $presignedurl");
+    exit();
 }

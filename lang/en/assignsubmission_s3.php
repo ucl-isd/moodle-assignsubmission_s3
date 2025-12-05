@@ -23,7 +23,6 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// Activity settings.
 $string['activitysetting:baseurl'] = 'Base URL';
 $string['activitysetting:baseurl_help'] = 'Alternate URL for S3 compatible endpoints. Leave blank for normal S3 use';
 $string['activitysetting:bucket'] = 'Bucket';
@@ -37,15 +36,17 @@ $string['activitysetting:region'] = 'Region';
 $string['activitysetting:region_help'] = 'Amazon S3 API gateway region';
 $string['activitysetting:secret'] = 'Secret';
 $string['activitysetting:secret_help'] = 'Amazon S3 secret credential';
-
-// General strings.
 $string['enabled'] = 'S3 submissions';
 $string['enabled_help'] = 'If enabled, students are able to upload one or more files as their submission to S3.';
+$string['event:assessable_uploaded:description'] = 'The user with id "{$a->userid}" has uploaded a file to the submission with id "{$a->objectid}" in the assignment activity with course module id "{$a->contextinstanceid}"';
+$string['event:object_requested:description'] = 'The user with id "{$a->userid}" has requested the file for the submission with id "{$a->objectid}" in the assignment activity with course module id "{$a->contextinstanceid}"';
+$string['event:submission_created:description'] = 'The user with id "{$a->userid}" created an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}"';
+$string['event:submission_created:description_group'] = 'The user with id "{$a->userid}" created an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}" for the group with id "{$a->groupid}"';
+$string['event:submission_updated:description'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}"';
+$string['event:submission_updated:description_group'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}" for the group with id "{$a->groupid}"';
 $string['pluginname'] = 'S3 submissions';
 $string['s3:configure'] = 'Configure S3 submission';
 $string['s3'] = 'S3 submission';
-
-// Global settings.
 $string['setting:acceptedfiletypes'] = 'Default accepted file types';
 $string['setting:acceptedfiletypes_help'] = 'Accepted file types can be restricted by entering a list of file extensions. If the field is left empty, then all file types are allowed.';
 $string['setting:baseurl'] = 'Base URL';

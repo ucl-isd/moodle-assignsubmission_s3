@@ -14,19 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
-
-global $CFG;
-require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
-
 /**
- * Object requested event test.
+ * Services file.
  *
  * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class object_requested_test extends advanced_testcase {
 
-}
+$functions = [
+    'assignsubmission_s3_get_s3_presigned' => [
+        'classname'    => 'assignsubmission_s3\external\get_s3_presigned',
+        'description'  => 'Get the S3 upload url for assignsubmission S3.',
+        'type'         => 'write',
+        'capabilities' => 'mod/assign:submit',
+        'ajax'         => true,
+    ],
+];

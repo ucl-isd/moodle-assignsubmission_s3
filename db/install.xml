@@ -12,6 +12,7 @@
                 <FIELD NAME="status" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="location" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="expiry" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="uuid" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -22,6 +23,9 @@
                 <KEY NAME="submission" TYPE="foreign" FIELDS="submission" REFTABLE="assign_submission" REFFIELDS="id" COMMENT="The submission this file submission relates to."/>
                 <KEY NAME="usermodified" TYPE="foreign" FIELDS="usermodified" REFTABLE="user" REFFIELDS="id" COMMENT="The submission this file submission relates to."/>
             </KEYS>
+            <INDEXES>
+                <INDEX NAME="uuid" UNIQUE="true" FIELDS="uuid"/>
+            </INDEXES>
         </TABLE>
     </TABLES>
 </XMLDB>
