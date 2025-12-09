@@ -29,22 +29,20 @@ use core\session\manager;
 /**
  * Serves S3 assignment submissions.
  *
- * @param $course
- * @param $cm
+ * @param stdClass $course
+ * @param stdClass $cm
  * @param context $context
- * @param $filearea
- * @param $args
- * @param $forcedownload
- * @param array $options
+ * @param string $filearea
+ * @param array $args
  * @return void
  */
 function assignsubmission_s3_pluginfile(
-    $course,
-    $cm,
+    stdClass $course,
+    stdClass $cm,
     context $context,
-    $filearea,
-    $args,
-) {
+    string $filearea,
+    array $args,
+): void {
     global $CFG, $DB;
 
     if ($context->contextlevel != CONTEXT_MODULE) {

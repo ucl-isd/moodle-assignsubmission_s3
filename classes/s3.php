@@ -84,7 +84,7 @@ class s3 {
         $this->client->putObjectTagging();
     }
 
-    public function create_object($object): array {
+    public function check_permissions(): array {
         if (!$this->is_configured()) {
             return [
                 'result' => false,
@@ -115,17 +115,16 @@ class s3 {
                 'message' => "$statuscode recieved", // TODO Lang string
             ];
         }
-        //$this->client->putObject([
-        //    'Bucket' => 'ucl-stg-wr473181',
-        //    'Key'    => 'file-sample_1MB.doc',
-        //    'Body'   => $object,
-        //]);
-
-        return true;
     }
 
+    /**
+     * Return presigned URL for the GetObject request.
+     *
+     * @param stdClass $object
+     * @return RequestInterface|null
+     */
     public function retrieve_object(stdClass $object): ?RequestInterface {
-        if ($this->is_configured()) {
+        if ($this->is_configured() && $this->is_available($object->uuid)) {
             return $this->client->createPresignedRequest(
                 $this->client->getCommand('GetObject', [
                     'Bucket' => $this->bucket,
@@ -139,18 +138,34 @@ class s3 {
         return null;
     }
 
-    public function update_object($object) {
-
+    /**
+     * Delete the object in the bucket.
+     *
+     * @param $key
+     * @return bool
+     */
+    public function delete_object($key): bool {
+        $deleted = true;
+        if ($this->is_configured()) {
+            $this->client->deleteObject([
+                'Bucket' => $this->bucket,
+                'Key' => $key
+            ]);
+            $deleted = !$this->is_available($key);
+        }
+        return $deleted;
     }
 
-    public function delete_object($object) {
-
+    private function is_available($key): bool {
+        return $this->client->doesObjectExist($this->bucket, $key);
     }
 
-    private function is_available(): bool {
-        return true;
-    }
-
+    /**
+     * Return presigned URL for the PutObject request.
+     *
+     * @param string $key
+     * @return RequestInterface|null
+     */
     public function create_presigned_request(string $key): ?RequestInterface {
         if ($this->is_configured()) {
             return $this->client->createPresignedRequest(

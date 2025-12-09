@@ -39,7 +39,9 @@
     </div>
     <div class="col-md-9 d-flex flex-wrap align-items-start felement" data-fieldtype="filemanager">
         <fieldset class="w-100 m-0 p-0 border-0" id="id_s3_file_fieldset">
-            <input type="file" id="s3_file" name="s3_file" required="required"/>
+            <input type="file" id="s3_file" name="s3_file" required="required" accept="{{{accept}}}" size="{{{size}}}"/>
+            <div>Accepted types: {{{accept}}}</div>
+            <div>Max file size: {{{humansize}}}</div>
         </fieldset>
     </div>
 </div>

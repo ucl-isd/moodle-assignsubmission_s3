@@ -42,10 +42,21 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
             e.preventDefault();
             const upload = file.files[0];
             let request = ajax.call([{
-                methodname: 'assignsubmission_s3_get_s3_presigned',
-                args: {assignmentid: assignmentId, filename: upload.name, mimetype: upload.type}
+              methodname: 'assignsubmission_s3_get_s3_presigned',
+              args: {
+                assignmentid: assignmentId,
+                filename: upload.name,
+                mimetype: upload.type,
+                filesize: upload.size
+              }
             }]);
             request[0].done(function(result) {
+              if (result.error) {
+                notification.alert(
+                  result.error_title,
+                  result.error_msg
+                );
+              } else {
                 fileContainer.classList.add("hidden");
                 progressContainer.classList.remove("hidden");
                 const payload = new FormData();
@@ -55,19 +66,20 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
                 req.open('PUT', result.s3_url);
                 // Update the progress indicator for upload.
                 req.upload.addEventListener('progress', function(e) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    progress.setAttribute('aria-valuenow', percentComplete);
-                    progress.style.width = percentComplete + "%";
-                    progresspercent.innerText = Math.round(percentComplete) + "%";
+                  const percentComplete = (e.loaded / e.total) * 100;
+                  progress.setAttribute('aria-valuenow', percentComplete);
+                  progress.style.width = percentComplete + "%";
+                  progresspercent.innerText = Math.round(percentComplete) + "%";
                 });
 
                 // Fires when upload is complete
                 req.addEventListener('load', function() {
-                    file.value = null;
-                    form.submit();
+                  file.value = null;
+                  form.submit();
                 });
 
                 req.send(payload);
+              }
             }).fail(notification.exception);
         });
     };

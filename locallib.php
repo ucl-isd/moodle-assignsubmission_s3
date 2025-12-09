@@ -17,6 +17,7 @@ use assignsubmission_s3\event\assessable_uploaded;
 use assignsubmission_s3\event\submission_created;
 use assignsubmission_s3\event\submission_updated;
 use assignsubmission_s3\persistent\assignsubmission_s3;
+use core_form\filetypes_util;
 
 /**
  * Library class for S3 submission plugin extending submission plugin base class.
@@ -95,13 +96,27 @@ class assign_submission_s3 extends assign_submission_plugin {
         global $OUTPUT, $PAGE;
 
         $PAGE->requires->js_call_amd('assignsubmission_s3/upload', 'init', [$this->assignment->get_course_module()->id]);
-        $mform->addElement('html', $OUTPUT->render_from_template('assignsubmission_s3/form/file', []));
+        $mform->addElement(
+            'html',
+            $OUTPUT->render_from_template(
+                'assignsubmission_s3/form/file',
+                [
+                    'accept' => implode(',', self::get_filetypes()),
+                    'size' => self::get_maxfilesize(),
+                    'humansize' => self::get_human_readable_size(self::get_maxfilesize()),
+                ]
+            ),
+        );
     }
 
+    /**
+     * Settings form elements for the assignment settings page.
+     *
+     * @param MoodleQuickForm $mform
+     * @return void
+     */
     public function get_settings(MoodleQuickForm $mform): void {
-        global $CFG, $OUTPUT;
-
-        require_once($CFG->dirroot . '/mod/assign/submission/maharaws/lib.php');
+        global $OUTPUT;
 
         $config = get_config('assignsubmission_s3');
 
@@ -313,17 +328,22 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @throws coding_exception
      */
     public function remove(stdClass $submission): void {
+        // Delete the custom table reference and file in the bucket.
         if ($s3submission = $this->get_file_submission($submission->id)) {
+            $s3 = new \assignsubmission_s3\s3((array) $this->get_config());
+            $s3->delete_object($s3submission->get('uuid'));
             $s3submission->delete();
         }
-        $fs = get_file_storage();
 
+        // Delete the stub file.
+        $fs = get_file_storage();
         $fs->delete_area_files(
             $this->assignment->get_context()->id,
             'assignsubmission_s3',
             self::FILEAREA,
             $submission->id,
         );
+
     }
 
     /**
@@ -400,5 +420,40 @@ class assign_submission_s3 extends assign_submission_plugin {
      */
     public function view_summary(stdClass $submissionorgrade, &$showviewlink): string {
         return $this->assignment->render_area_files('assignsubmission_s3', self::FILEAREA, $submissionorgrade->id);
+    }
+
+    /**
+     * Get the max allowed filesize for the upload.
+     *
+     * @return int
+     */
+    public static function get_maxfilesize(): int {
+        $maxbytesvalue = get_config('assignsubmission_s3', 'maxbytesvalue');
+        $maxbytesunit = get_config('assignsubmission_s3', 'maxbytesunit');
+        return $maxbytesvalue * $maxbytesunit;
+    }
+
+    /**
+     * Get the configured filetypes normalized.
+     *
+     * @return array
+     */
+    public static function get_filetypes(): array {
+        $filetypes = get_config('assignsubmission_s3', 'filetypes');
+        $util = new filetypes_util();
+        return $util->normalize_file_types($filetypes);
+    }
+
+    /**
+     * Get the human readable size of the bytes provided.
+     *
+     * @param int $size
+     * @return string
+     */
+    public static function get_human_readable_size(int $size): string {
+        $i = floor(log($size) / log(1024));
+        $sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+        return sprintf('%.02F', $size / pow(1024, $i)) * 1 . ' ' . $sizes[$i];
     }
 }

@@ -28,6 +28,7 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
 use assignsubmission_s3\s3;
+use core_form\filetypes_util;
 use stdClass;
 
 /**
@@ -39,7 +40,6 @@ use stdClass;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class get_s3_presigned extends external_api {
-
     /**
      * Describes the parameters for update_category_order webservice.
      * @return external_function_parameters
@@ -49,6 +49,7 @@ class get_s3_presigned extends external_api {
             'assignmentid' => new external_value(PARAM_INT, 'The assignment ID'),
             'filename' => new external_value(PARAM_TEXT, 'The file name'),
             'mimetype' => new external_value(PARAM_TEXT, 'The file mime type'),
+            'filesize' => new external_value(PARAM_TEXT, 'The file size'),
         ]);
     }
 
@@ -59,17 +60,40 @@ class get_s3_presigned extends external_api {
      */
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
-            's3_url' => new external_value(PARAM_URL, 'Pre-signed S3 URL.'),
+            'error' => new external_value(PARAM_BOOL, 'Was an error generated?', VALUE_REQUIRED),
+            'error_title' => new external_value(PARAM_TEXT, 'Error title if error was generated', VALUE_OPTIONAL),
+            'error_msg' => new external_value(PARAM_TEXT, 'Error message if error was generated', VALUE_OPTIONAL),
+            's3_url' => new external_value(PARAM_URL, 'Pre-signed S3 URL.', VALUE_OPTIONAL),
         ]);
     }
 
-    public static function execute(int $assignmentid, string $filename, string $mimetype): array {
+    public static function execute(int $assignmentid, string $filename, string $mimetype, string $filesize): array {
         global $USER;
 
         $context = context_module::instance($assignmentid);
+        $assignment = new assign($context, null, null);
+
+        if (!self::is_allowed_filesize((int) $filesize)) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string(
+                    'error:filesize',
+                    'assignsubmission_s3',
+                    assign_submission_s3::get_human_readable_size($filesize),
+                ),
+            ];
+        }
+
+        if (!self::is_allowed_filetype($filename)) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('error:filetype', 'assignsubmission_s3', $filename),
+            ];
+        }
 
         // Get the users submission (creating one if one doesn't exist).
-        $assignment = new assign($context, null, null);
         $submission = $assignment->get_user_submission($USER->id, true);
 
         $fs = get_file_storage();
@@ -105,8 +129,29 @@ class get_s3_presigned extends external_api {
         $s3 = new s3();
         $request = $s3->create_presigned_request($s3submission->get('uuid'));
 
-        // TODO Trigger event.
+        return [
+            'error' => false,
+            's3_url' => (string) $request->getUri()
+        ];
+    }
 
-        return ['s3_url' => (string) $request->getUri()];
+    /**
+     * Check if the file provided is of teh right type to be uploaded.
+     *
+     * @param string $filename
+     * @return bool
+     */
+    public static function is_allowed_filetype(string $filename): bool {
+        return (new filetypes_util())->is_allowed_file_type($filename, assign_submission_s3::get_filetypes());
+    }
+
+    /**
+     * Check if the file provided is of the right size to be uploaded.
+     *
+     * @param int $filesize
+     * @return bool
+     */
+    public static function is_allowed_filesize(int $filesize): bool {
+        return $filesize <= assign_submission_s3::get_maxfilesize();
     }
 }
