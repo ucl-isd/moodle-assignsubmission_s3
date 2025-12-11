@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\task;
+
+use advanced_testcase;
+use mod_assign_test_generator;
+
 /**
  * Object restore test.
  *
@@ -21,4 +26,12 @@
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \assignsubmission_s3\task\object_restore
  */
+final class object_restore_test extends advanced_testcase {
+    // Use the generator helper.
+    use mod_assign_test_generator;
+
+    public function test_task(): void {
+    }
+}

@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\admin;
+
+use admin_setting;
+
 /**
  * Custom admin setting for duration as the core version includes seconds
  * and the minimum for AWS API requests is 1 day.
@@ -23,11 +27,6 @@
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-namespace assignsubmission_s3\admin;
-
-use admin_setting;
-
 class admin_setting_config_size extends admin_setting {
     /** @var int default size unit */
     protected int $defaultunit;
@@ -89,16 +88,16 @@ class admin_setting_config_size extends admin_setting {
 
     /**
      * Finds suitable units for given size.
-     * @static
+     *
      * @param int $bytes
      * @return array
      */
     protected static function parse_size(int $bytes): array {
-        $units = array_reverse(self::get_units(), true);
+        $units = array_flip(array_reverse(self::get_units(), true));
 
-        foreach ($units as $unit => $unused) {
+        foreach ($units as $unit) {
             if ($bytes % $unit === 0) {
-                return ['v' => (int) ($bytes/$unit), 'u' => $unit];
+                return ['v' => (int) ($bytes / $unit), 'u' => $unit];
             }
         }
         return ['v' => $bytes, 'u' => self::SIZE_UNIT_KILOBYTE];
@@ -106,7 +105,7 @@ class admin_setting_config_size extends admin_setting {
 
     /**
      * Returns selectable units.
-     * @static
+     *
      * @return array
      */
     protected static function get_units(): array {
@@ -121,7 +120,6 @@ class admin_setting_config_size extends admin_setting {
     /**
      * Converts seconds to some more user friendly string.
      *
-     * @static
      * @param int $bytes
      * @param null|string $emptyvalue The value to use when the duration is empty. If not specified, a "None" value is used.
      * @return string
@@ -149,14 +147,14 @@ class admin_setting_config_size extends admin_setting {
      * @param string $query
      * @return string duration text+select fields and wrapping div(s)
      */
-    public function output_html($data, $query=''): string {
+    public function output_html($data, $query = ''): string {
         global $OUTPUT;
 
         $default = $this->get_defaultsetting();
         if (is_number($default)) {
             $defaultinfo = self::get_size_text($default);
-        } elseif (is_array($default)) {
-            $defaultinfo = self::get_size_text($default['v']*$default['u']);
+        } else if (is_array($default)) {
+            $defaultinfo = self::get_size_text($default['v'] * $default['u']);
         } else {
             $defaultinfo = null;
         }
@@ -171,13 +169,13 @@ class admin_setting_config_size extends admin_setting {
             'name' => $this->get_full_name(),
             'value' => $data['v'] ?? '',
             'readonly' => $this->is_readonly(),
-            'options' => array_map(function($unit) use ($units, $data, $defaultunit) {
+            'options' => array_map(function ($unit) use ($units, $data, $defaultunit) {
                 return [
                     'value' => $unit,
                     'name' => $units[$unit],
-                    'selected' => isset($data) && (($data['v'] == 0 && $unit == $defaultunit) || $unit == $data['u'])
+                    'selected' => isset($data) && (($data['v'] == 0 && $unit == $defaultunit) || $unit == $data['u']),
                 ];
-            }, array_keys($units))
+            }, array_keys($units)),
         ];
 
         // Use the core duration template as we're using the same layout.

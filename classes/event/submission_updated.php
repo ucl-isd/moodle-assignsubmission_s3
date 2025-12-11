@@ -28,7 +28,6 @@ use moodle_url;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class submission_updated extends \mod_assign\event\submission_created {
-
     /**
      * Init method.
      *
@@ -73,4 +72,5 @@ class submission_updated extends \mod_assign\event\submission_created {
      */
     public static function get_objectid_mapping(): int {
         return base::NOT_MAPPED;
-    }}
+    }
+}

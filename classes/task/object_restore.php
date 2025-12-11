@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\task;
+
+use core\task\scheduled_task;
+
 /**
  * Scheduled task to restore requested objects.
  *
@@ -22,24 +26,23 @@
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-namespace assignsubmission_s3\task;
-
-use core\task\scheduled_task;
-
 class object_restore extends scheduled_task {
-
     /**
-     * @inheritDoc
+     * Get a descriptive name for the task (shown to admins)
+     *
+     * @return string
      */
-    public function get_name() {
+    public function get_name(): string {
         // TODO: Implement get_name() method.
     }
 
     /**
-     * @inheritDoc
+     * Do the job.
+     * Throw exceptions on errors (the job will be retried).
+     *
+     * @return void
      */
-    public function execute() {
+    public function execute(): void {
         // TODO: Implement execute() method.
     }
 }

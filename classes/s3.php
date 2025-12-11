@@ -14,6 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3;
+
+use assign;
+use assignsubmission_s3\event\connection_issue;
+use Aws\S3\Exception\S3Exception;
+use Aws\S3\S3Client;
+use Aws\MockHandler;
+use context_module;
+use Psr\Http\Message\RequestInterface;
+use stdClass;
+
 /**
  * S3 class to handle object processing and tagging.
  *
@@ -22,39 +33,35 @@
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-namespace assignsubmission_s3;
-
-use assign;
-use assignsubmission_s3\event\connection_issue;
-use Aws\Exception\AwsException;
-use Aws\S3\Exception\S3Exception;
-use Aws\S3\S3Client;
-use Aws\MockHandler;
-use context_module;
-use Psr\Http\Message\RequestInterface;
-use stdClass;
-
 class s3 {
-
+    /** @var S3Client|null The S3 Client we use to interact with AWS via the API. */
     public ?S3Client $client = null;
 
+    /** @var string|mixed The endpoint setting. */
     private string $endpoint;
 
+    /** @var string|mixed The region setting. */
     private string $region;
 
+    /** @var string|mixed The bucket setting. */
     private string $bucket;
 
+    /** @var string|mixed The keyid setting. */
     private string $keyid;
 
+    /** @var string|mixed The secret setting. */
     private string $secret;
 
+    /** @var bool Flag to identify if an error has been thrown. */
     private bool $haserror = false;
 
+    /** @var string The error message. */
     private string $error = '';
 
+    /** @var MockHandler|null Optional handler that is used for PHPUnit testing. */
     private ?MockHandler $handler;
 
+    /** @var assign The assignment we're processing the upload for. */
     private assign $assignment;
 
     /**
@@ -93,7 +100,7 @@ class s3 {
                 'region' => $this->region,
                 'credentials' => [
                     'key' => $this->keyid,
-                    'secret' => $this->secret
+                    'secret' => $this->secret,
                 ],
                 'handler' => $this->handler,
             ]);
@@ -104,6 +111,11 @@ class s3 {
         }
     }
 
+    /**
+     * Check if the plugin has been configured.
+     *
+     * @return bool
+     */
     private function is_configured(): bool {
         $configured = !empty($this->region) && !empty($this->bucket) && !empty($this->keyid) && !empty($this->secret);
         if (!$configured) {
@@ -112,6 +124,11 @@ class s3 {
         return $configured;
     }
 
+    /**
+     * Check if the defined settings allow for the required actions.
+     *
+     * @return bool
+     */
     public function has_permissions(): bool {
         try {
             $result = $this->client->putObject([
@@ -132,7 +149,14 @@ class s3 {
         }
     }
 
-    public function add_tag($tagname, $key): void {
+    /**
+     * Add the defined tag to the object.
+     *
+     * @param string $tagname
+     * @param string $key
+     * @return void
+     */
+    public function add_tag(string $tagname, string $key): void {
         try {
             $this->client->putObjectTagging([
                 'Bucket' => $this->bucket,
@@ -173,20 +197,46 @@ class s3 {
     }
 
     /**
-     * Delete the object in the bucket.
+     * Restore the object from teh glacier archive.
      *
      * @param $key
+     * @return void
+     */
+    public function restore_object($key): void {
+        try {
+            $this->client->restoreObject([
+                'Bucket' => $this->bucket,
+                'Key' => $key,
+                'RestoreRequest' => [
+                    'Days' => ceil(get_config('assignsubmission_s3', 'glacierrestoreduration') / DAYSECS),
+                ],
+            ]);
+        } catch (S3Exception $e) {
+            $this->trigger_error_event("Restore object failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Delete the object in the bucket.
+     *
+     * @param string $key
      * @return bool
      */
-    public function delete_object($key): bool {
+    public function delete_object(string $key): bool {
         $this->client->deleteObject([
             'Bucket' => $this->bucket,
-            'Key' => $key
+            'Key' => $key,
         ]);
         return !$this->is_available($key);
     }
 
-    private function is_available($key): bool {
+    /**
+     * Check if the object is available/exists.
+     *
+     * @param string $key
+     * @return bool
+     */
+    private function is_available(string $key): bool {
         return $this->client->doesObjectExist($this->bucket, $key);
     }
 
@@ -224,6 +274,12 @@ class s3 {
         return $this->error;
     }
 
+    /**
+     * Trigger the error event and set the error properties.
+     *
+     * @param string $error
+     * @return void
+     */
     private function trigger_error_event(string $error): void {
         global $USER;
 

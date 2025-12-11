@@ -17,7 +17,7 @@
 /**
  * TODO Add description
  *
- * @package   TODO Add package name
+ * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -33,11 +33,7 @@ use mod_assign\privacy\assignsubmission_provider;
 use mod_assign\privacy\assignsubmission_user_provider;
 use mod_assign\privacy\useridlist;
 
-class provider implements
-    \core_privacy\local\metadata\provider,
-    assignsubmission_provider,
-    assignsubmission_user_provider {
-
+class provider implements assignsubmission_provider, assignsubmission_user_provider, \core_privacy\local\metadata\provider {
     public static function get_context_for_userid_within_submission(int $userid, contextlist $contextlist) {
         // TODO: Implement get_context_for_userid_within_submission() method.
     }

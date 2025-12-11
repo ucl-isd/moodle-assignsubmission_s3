@@ -18,8 +18,6 @@ namespace assignsubmission_s3\event;
 
 use moodle_url;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Assessable uploaded event.
  *
@@ -29,7 +27,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class assessable_uploaded extends \core\event\assessable_uploaded {
-
     /**
      * Returns description of what happened.
      *

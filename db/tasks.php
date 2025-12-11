@@ -23,6 +23,8 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+defined('MOODLE_INTERNAL') || die();
+
 $tasks = [
     [
         'classname' => 'assignsubmission_s3\task\object_restore',
@@ -31,7 +33,7 @@ $tasks = [
         'hour' => '*',
         'day' => '*',
         'dayofweek' => '*',
-        'month' => '*'
+        'month' => '*',
     ],
     [
         'classname' => 'assignsubmission_s3\task\object_tag',
@@ -40,6 +42,6 @@ $tasks = [
         'hour' => '*',
         'day' => '*',
         'dayofweek' => '*',
-        'month' => '*'
+        'month' => '*',
     ],
 ];

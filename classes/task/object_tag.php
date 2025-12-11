@@ -14,15 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Scheduled task to add glacier tags to objects.
- *
- * @package   assignsubmission_s3
- * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
- * @copyright Catalyst IT, 2025
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 namespace assignsubmission_s3\task;
 
 use assignsubmission_s3\persistent\assignsubmission_s3;
@@ -31,8 +22,15 @@ use Aws\MockHandler;
 use core\task\scheduled_task;
 use DateTime;
 
+/**
+ * Scheduled task to add glacier tags to objects.
+ *
+ * @package   assignsubmission_s3
+ * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
+ * @copyright Catalyst IT, 2025
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class object_tag extends scheduled_task {
-
     /**
      * Get a descriptive name for the task (shown to admins)
      *

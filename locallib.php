@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 use assignsubmission_s3\event\assessable_uploaded;
 use assignsubmission_s3\event\submission_created;
 use assignsubmission_s3\event\submission_updated;
@@ -91,9 +92,12 @@ class assign_submission_s3 extends assign_submission_plugin {
             }
             // Static elemment doesn't allow hideif so we use a group to do this (MDL-66251).
             $group = [];
-            $group[] = $mform->createElement('static', 'assignsubmission_s3_label',
+            $group[] = $mform->createElement(
+                'static',
+                'assignsubmission_s3_label',
                 get_string('activitysetting:gclabel', 'assignsubmission_s3'),
-                get_string('activitysetting:gcwarning', 'assignsubmission_s3'));
+                get_string('activitysetting:gcwarning', 'assignsubmission_s3'),
+            );
             $mform->addGroup($group, 's3labelgroup', '', ' ', false);
             $mform->hideIf('s3labelgroup', 'assignsubmission_s3_enabled');
         }
@@ -106,7 +110,7 @@ class assign_submission_s3 extends assign_submission_plugin {
             $OUTPUT->notification(get_string('activitysetting:noallowsubmissionsfromdate', 'assignsubmission_s3'), 'info', false)
         );
         $mform->insertElementBefore($notification, 'allowsubmissionsfromdate');
-        $mform->hideIf('s3fromdatenotification', 'assignsubmission_s3_enabled',);
+        $mform->hideIf('s3fromdatenotification', 'assignsubmission_s3_enabled');
 
         // Only output if force global not enabled.
         if (empty($config->forceglobal)) {
@@ -235,8 +239,8 @@ class assign_submission_s3 extends assign_submission_plugin {
             'objectid' => $submissionorgrade->id,
             'other' => [
                 'content' => '',
-                'pathnamehashes' => []
-            ]
+                'pathnamehashes' => [],
+            ],
         ];
         if (!empty($submissionorgrade->userid) && ($submissionorgrade->userid != $USER->id)) {
             $params['relateduserid'] = $submissionorgrade->userid;
@@ -318,7 +322,6 @@ class assign_submission_s3 extends assign_submission_plugin {
             self::FILEAREA,
             $submission->id,
         );
-
     }
 
     /**
@@ -332,7 +335,7 @@ class assign_submission_s3 extends assign_submission_plugin {
         return assignsubmission_s3::get_records([
             'usermodified' => $user->id,
             'assignment' => $this->assignment->get_course_module()->id,
-            'submission' => $submissionorgrade->id
+            'submission' => $submissionorgrade->id,
         ]);
     }
 
@@ -397,12 +400,19 @@ class assign_submission_s3 extends assign_submission_plugin {
         return $this->assignment->render_area_files('assignsubmission_s3', self::FILEAREA, $submissionorgrade->id);
     }
 
-    public static function validate_submission($filename, $filesize, ): string {
+    /**
+     * Validate the submissions size and type
+     *
+     * @param string $filename
+     * @param string $filesize
+     * @return string
+     */
+    public static function validate_submission($filename, $filesize): string {
         if (!self::is_allowed_filesize((int) $filesize)) {
             return get_string(
                 'error:filesize',
                 'assignsubmission_s3',
-                assign_submission_s3::get_human_readable_size(assign_submission_s3::get_maxfilesize()),
+                self::get_human_readable_size(self::get_maxfilesize()),
             );
         }
 
@@ -435,13 +445,13 @@ class assign_submission_s3 extends assign_submission_plugin {
             $submission = $assignment->get_user_submission($USER->id, true);
         }
         $fs = get_file_storage();
-        $fs->delete_area_files($context->id, assign_submission_s3::FILECOMPONENT, assign_submission_s3::FILEAREA, $submission->id);
+        $fs->delete_area_files($context->id, self::FILECOMPONENT, self::FILEAREA, $submission->id);
 
         // Create a file with an empty string so that we can store the mime/type, name, and size for download.
         $filerecord = new stdClass();
         $filerecord->contextid = $context->id;
-        $filerecord->component = assign_submission_s3::FILECOMPONENT;
-        $filerecord->filearea = assign_submission_s3::FILEAREA;
+        $filerecord->component = self::FILECOMPONENT;
+        $filerecord->filearea = self::FILEAREA;
         $filerecord->itemid = $submission->id;
         $filerecord->filepath = '/';
         $filerecord->filename = $filename;
@@ -493,7 +503,6 @@ class assign_submission_s3 extends assign_submission_plugin {
             '',
             $s3url,
         ];
-
     }
 
     /**

@@ -16,6 +16,8 @@
 
 namespace assignsubmission_s3\external;
 
+defined('MOODLE_INTERNAL') || die();
+
 global $CFG;
 require_once($CFG->dirroot . '/mod/assign/locallib.php');
 require_once($CFG->dirroot . '/mod/assign/submission/s3/locallib.php');
@@ -62,6 +64,15 @@ class get_s3_presigned extends external_api {
         ]);
     }
 
+    /**
+     * Execute the webservice call.
+     *
+     * @param int $assignmentid
+     * @param string $filename
+     * @param string $mimetype
+     * @param string $filesize
+     * @return array
+     */
     public static function execute(int $assignmentid, string $filename, string $mimetype, string $filesize): array {
 
         $error = assign_submission_s3::validate_submission($filename, $filesize);

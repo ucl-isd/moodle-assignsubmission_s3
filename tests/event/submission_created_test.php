@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\event;
+
+use advanced_testcase;
+use assign_submission_plugin;
+use mod_assign_generator;
+use mod_assign_test_generator;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -26,13 +33,13 @@ require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \assignsubmission_s3\event\submission_created
  */
-class submission_created_test extends advanced_testcase {
-
+final class submission_created_test extends advanced_testcase {
     // Use the generator helper.
     use mod_assign_test_generator;
 
-    public function test_trigger_no_group() {
+    public function test_trigger_no_group(): void {
         // Initial setup.
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -44,6 +51,7 @@ class submission_created_test extends advanced_testcase {
         $user = $this->getDataGenerator()->create_user();
         $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
 
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var $assigngenerator mod_assign_generator */
         $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
@@ -51,6 +59,7 @@ class submission_created_test extends advanced_testcase {
         $assign = $this->create_instance($course);
 
         // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var assign_submission_plugin[] $submissionplugins */
         $submissionplugins = $assign->get_submission_plugins();
         foreach ($submissionplugins as $plugin) {
@@ -92,7 +101,7 @@ class submission_created_test extends advanced_testcase {
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_trigger_group() {
+    public function test_trigger_group(): void {
 
         // Initial setup.
         $this->resetAfterTest();
@@ -109,6 +118,7 @@ class submission_created_test extends advanced_testcase {
         $group = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
         $this->getDataGenerator()->create_group_member(['groupid' => $group->id, 'userid' => $user->id]);
 
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var $assigngenerator mod_assign_generator */
         $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
@@ -116,6 +126,7 @@ class submission_created_test extends advanced_testcase {
         $assign = $this->create_instance($course, ['teamsubmission' => true]);
 
         // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var assign_submission_plugin[] $submissionplugins */
         $submissionplugins = $assign->get_submission_plugins();
         foreach ($submissionplugins as $plugin) {

@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-namespace event;
+namespace assignsubmission_s3\event;
+
 use advanced_testcase;
 use assign_submission_plugin;
 use assignsubmission_s3\s3;
@@ -37,14 +38,14 @@ require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \assignsubmission_s3\event\connection_issue
  */
-class connection_issue_test extends advanced_testcase
+final class connection_issue_test extends advanced_testcase
 {
-
     // Use the generator helper.
     use mod_assign_test_generator;
 
-    public function test_trigger_no_config() {
+    public function test_trigger_no_config(): void {
         // Initial setup.
         $this->resetAfterTest();
 
@@ -56,13 +57,12 @@ class connection_issue_test extends advanced_testcase
         $this->setUser($user);
         $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
 
-        /* @var $assigngenerator mod_assign_generator */
         $this->getDataGenerator()->get_plugin_generator('mod_assign');
-
         // Create an assign instance and get the course module.
         $assign = $this->create_instance($course);
 
         // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var assign_submission_plugin[] $submissionplugins */
         $submissionplugins = $assign->get_submission_plugins();
         foreach ($submissionplugins as $plugin) {
@@ -90,11 +90,12 @@ class connection_issue_test extends advanced_testcase
         $this->assertEventContextNotUsed($event);
         $description = 'The assignment activity with course module id "' .
             $assign->get_course_module()->id .
-            '" was unable to connect with S3 due to the error: "Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
+            '" was unable to connect with S3 due to the error: ' .
+            '"Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_trigger_fake_config() {
+    public function test_trigger_fake_config(): void {
         // Initial setup.
         $this->resetAfterTest();
 
@@ -106,6 +107,7 @@ class connection_issue_test extends advanced_testcase
         $this->setUser($user);
         $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
 
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var $assigngenerator mod_assign_generator */
         $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
@@ -113,6 +115,7 @@ class connection_issue_test extends advanced_testcase
         $assign = $this->create_instance($course);
 
         // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var assign_submission_plugin[] $submissionplugins */
         $submissionplugins = $assign->get_submission_plugins();
         foreach ($submissionplugins as $plugin) {
@@ -127,7 +130,7 @@ class connection_issue_test extends advanced_testcase
         $sink = $this->redirectEvents();
 
         $handler = new MockHandler();
-        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
+        $handler->append(function (CommandInterface $cmd) {
             return new S3Exception('The specified bucket does not exist', $cmd);
         });
 

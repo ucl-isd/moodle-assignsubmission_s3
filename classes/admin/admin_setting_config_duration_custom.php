@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\admin;
+
+use admin_setting_configduration;
+
 /**
  * Custom admin setting for duration as the core version includes seconds
  * and the minimum for AWS API requests is 1 day.
@@ -23,13 +27,7 @@
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-namespace assignsubmission_s3\admin;
-
-use admin_setting_configduration;
-
 class admin_setting_config_duration_custom extends admin_setting_configduration {
-
     /** @var int default duration unit */
     protected $defaultunit;
     /** @var callable|null Validation function */
@@ -92,7 +90,6 @@ class admin_setting_config_duration_custom extends admin_setting_configduration 
 
     /**
      * Returns selectable units.
-     * @static
      * @return array
      */
     protected static function get_units(): array {
@@ -105,7 +102,6 @@ class admin_setting_config_duration_custom extends admin_setting_configduration 
     /**
      * Converts seconds to some more user friendly string.
      *
-     * @static
      * @param int $seconds
      * @param null|string $emptyvalue The value to use when the duration is empty. If not specified, a "None" value is used.
      * @return string
@@ -132,20 +128,20 @@ class admin_setting_config_duration_custom extends admin_setting_configduration 
      * @param string $query
      * @return string duration text+select fields and wrapping div(s)
      */
-    public function output_html($data, $query=''): string {
+    public function output_html($data, $query = ''): string {
         global $OUTPUT;
 
         $default = $this->get_defaultsetting();
         if (is_number($default)) {
             $defaultinfo = self::get_duration_text($default);
-        } elseif (is_array($default)) {
-            $defaultinfo = self::get_duration_text($default['v']*$default['u']);
+        } else if (is_array($default)) {
+            $defaultinfo = self::get_duration_text($default['v'] * $default['u']);
         } else {
             $defaultinfo = null;
         }
 
         $inputid = $this->get_id() . 'v';
-        $units = array_filter(self::get_units(), function($unit): bool {
+        $units = array_filter(self::get_units(), function ($unit): bool {
             if (!$this->maxduration) {
                 // No duration limit. All units are valid.
                 return true;
@@ -161,13 +157,13 @@ class admin_setting_config_duration_custom extends admin_setting_configduration 
             'name' => $this->get_full_name(),
             'value' => $data['v'] ?? '',
             'readonly' => $this->is_readonly(),
-            'options' => array_map(function($unit) use ($units, $data, $defaultunit) {
+            'options' => array_map(function ($unit) use ($units, $data, $defaultunit) {
                 return [
                     'value' => $unit,
                     'name' => $units[$unit],
-                    'selected' => isset($data) && (($data['v'] == 0 && $unit == $defaultunit) || $unit == $data['u'])
+                    'selected' => isset($data) && (($data['v'] == 0 && $unit == $defaultunit) || $unit == $data['u']),
                 ];
-            }, array_keys($units))
+            }, array_keys($units)),
         ];
 
         $element = $OUTPUT->render_from_template('core_admin/setting_configduration', $context);

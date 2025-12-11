@@ -49,8 +49,8 @@ $string['event:submission_created:description_group'] = 'The user with id "{$a->
 $string['event:submission_updated:description'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}"';
 $string['event:submission_updated:description_group'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}" for the group with id "{$a->groupid}"';
 $string['pluginname'] = 'S3 submissions';
-$string['s3:configure'] = 'Configure S3 submission';
 $string['s3'] = 'S3 submission';
+$string['s3:configure'] = 'Configure S3 submission';
 $string['setting:acceptedfiletypes'] = 'Accepted file types';
 $string['setting:acceptedfiletypes_help'] = 'Accepted file types can be restricted by entering a list of file extensions. If the field is left empty, then all file types are allowed.';
 $string['setting:baseurl'] = 'Base URL';
@@ -76,4 +76,3 @@ $string['setting:region_help'] = 'Amazon S3 API gateway region';
 $string['setting:secret'] = 'Secret';
 $string['setting:secret_help'] = 'Amazon S3 secret credential';
 $string['task:obect_tag'] = 'Object glacier tagging';
-

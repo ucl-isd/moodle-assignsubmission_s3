@@ -51,7 +51,8 @@ function assignsubmission_s3_pluginfile(
 
     require_login($course, false, $cm);
     $itemid = (int)array_shift($args);
-    $submission = $DB->get_record('assign_submission',
+    $submission = $DB->get_record(
+        'assign_submission',
         ['id' => $itemid],
         'userid, assignment, groupid',
         MUST_EXIST
@@ -67,13 +68,17 @@ function assignsubmission_s3_pluginfile(
         send_file_not_found();
     }
 
-    if ($assign->get_instance()->teamsubmission &&
-        !$assign->can_view_group_submission($groupid)) {
+    if (
+        $assign->get_instance()->teamsubmission &&
+        !$assign->can_view_group_submission($groupid)
+    ) {
         send_file_not_found();
     }
 
-    if (!$assign->get_instance()->teamsubmission &&
-        !$assign->can_view_submission($userid)) {
+    if (
+        !$assign->get_instance()->teamsubmission &&
+        !$assign->can_view_submission($userid)
+    ) {
         send_file_not_found();
     }
 

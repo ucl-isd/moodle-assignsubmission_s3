@@ -14,13 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\task;
+
+use advanced_testcase;
+use assign_submission_plugin;
 use assignsubmission_s3\persistent\assignsubmission_s3;
-use assignsubmission_s3\task\object_tag;
 use Aws\CommandInterface;
 use Aws\MockHandler;
 use Aws\Result;
 use Aws\S3\Exception\S3Exception;
+use DateTime;
+use mod_assign_generator;
+use mod_assign_test_generator;
+use mod_assign_testable_assign;
+use phpunit_event_sink;
 use Psr\Http\Message\RequestInterface;
+use stdClass;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -34,16 +43,27 @@ require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \assignsubmission_s3\task\object_tag
  */
-class object_tag_test extends advanced_testcase {
+final class object_tag_test extends advanced_testcase {
     // Use the generator helper.
     use mod_assign_test_generator;
 
+    /**
+     * The event sink.
+     *
+     * @var phpunit_event_sink
+     */
     private phpunit_event_sink $sink;
 
+    /**
+     * The assign module.
+     *
+     * @var mod_assign_testable_assign
+     */
     private mod_assign_testable_assign $assign;
 
-    public function test_task_config_issue() {
+    public function test_task_config_issue(): void {
         // Initial setup.
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -83,7 +103,7 @@ class object_tag_test extends advanced_testcase {
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_task_bucket_issue() {
+    public function test_task_bucket_issue(): void {
         // Initial setup.
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -91,7 +111,7 @@ class object_tag_test extends advanced_testcase {
         $this->create_graded_submission();
         // Define the mock handler for the task.
         $handler = new MockHandler();
-        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
+        $handler->append(function (CommandInterface $cmd) {
             return new S3Exception('The specified bucket does not exist', $cmd);
         });
 
@@ -135,7 +155,7 @@ class object_tag_test extends advanced_testcase {
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_valid() {
+    public function test_valid(): void {
         // Initial setup.
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -144,14 +164,14 @@ class object_tag_test extends advanced_testcase {
         // Define the mock handler for the task.
         $handler = new MockHandler();
         // Pass the initial permission check.
-        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
-            return new Result([
+        $handler->append(
+            new Result([
                 'ObjectURL' => 'https://test-object-url',
                 '@metadata' => [
                     'statusCode' => 200,
                 ],
-            ]);
-        });
+            ])
+        );
         // Return a 200 for the valid object tagging.
         $handler->append(new Result([]));
 
@@ -187,6 +207,7 @@ class object_tag_test extends advanced_testcase {
         $teacher = $this->getDataGenerator()->create_user();
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
 
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var $assigngenerator mod_assign_generator */
         $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
@@ -194,6 +215,7 @@ class object_tag_test extends advanced_testcase {
         $this->assign = $this->create_instance($course);
 
         // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
         /* @var assign_submission_plugin[] $submissionplugins */
         $submissionplugins = $this->assign->get_submission_plugins();
         foreach ($submissionplugins as $plugin) {

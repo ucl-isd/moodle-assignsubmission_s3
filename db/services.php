@@ -23,6 +23,8 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+defined('MOODLE_INTERNAL') || die();
+
 $functions = [
     'assignsubmission_s3_get_s3_presigned' => [
         'classname'    => 'assignsubmission_s3\external\get_s3_presigned',

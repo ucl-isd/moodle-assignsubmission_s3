@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace assignsubmission_s3\event;
+
+use advanced_testcase;
+use mod_assign_test_generator;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -26,7 +31,12 @@ require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \assignsubmission_s3\event\object_requested
  */
-class object_requested_test extends advanced_testcase {
+final class object_requested_test extends advanced_testcase {
+    // Use the generator helper.
+    use mod_assign_test_generator;
 
+    public function test_task(): void {
+    }
 }

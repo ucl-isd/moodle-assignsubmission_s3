@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-use assignsubmission_s3\external\get_s3_presigned;
+defined('MOODLE_INTERNAL') || die();
 
 require_once("{$CFG->dirroot}/mod/assign/tests/generator/assignsubmission_subplugin_generator.php");
 
@@ -27,7 +27,6 @@ require_once("{$CFG->dirroot}/mod/assign/tests/generator/assignsubmission_subplu
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class assignsubmission_s3_generator extends assignsubmission_subplugin_generator {
-
     /**
      * Add submission data in the correct format for a call to `assign::save_submission()`.
      * For S3 tests we need a file and

@@ -14,16 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Persistant class for assignsubmission_s3 table.
- *
- * @package   assignsubmission_s3
- * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
- * @copyright Catalyst IT, 2025
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 namespace assignsubmission_s3\persistent;
+
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->libdir . '/gradelib.php');
@@ -35,8 +28,15 @@ use context_module;
 use core\persistent;
 use core\uuid;
 
+/**
+ * Persistant class for assignsubmission_s3 table.
+ *
+ * @package   assignsubmission_s3
+ * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
+ * @copyright Catalyst IT, 2025
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class assignsubmission_s3 extends persistent {
-
     /** @var string Table name this class is mapped to. */
     public const TABLE = 'assignsubmission_s3';
 
@@ -50,7 +50,8 @@ class assignsubmission_s3 extends persistent {
     public const STATUS_REMOTE_GLACIER = 2;
 
     /** @var array Local cache of assignments for performance. */
-    public static $assignments = [];
+    public static array $assignments = [];
+
     /**
      * Return the definition of the properties of this model.
      *
@@ -82,9 +83,9 @@ class assignsubmission_s3 extends persistent {
             ],
             'uuid' => [
                 'type' => PARAM_TEXT,
-                'default' => function() {
+                'default' => function () {
                     return self::generate_uuid();
-                }
+                },
             ],
         ];
     }
@@ -103,6 +104,12 @@ class assignsubmission_s3 extends persistent {
         return $uuid;
     }
 
+    /**
+     * Returns all records modified before the specified time with the status "STATUS_REMOTE_STANDARD".
+     *
+     * @param int $time
+     * @return array
+     */
     public static function get_standard_graded_records_before(int $time): array {
         global $DB;
 
