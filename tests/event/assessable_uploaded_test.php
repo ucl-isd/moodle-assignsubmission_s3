@@ -70,7 +70,9 @@ class assessable_uploaded_test extends advanced_testcase {
             'cmid' => $assign->get_course_module()->id,
             'userid' => $user->id,
             's3' => true,
-            'filepath' => 'mod/assign/submission/s3/tests/fixtures/file-sample_1MB.doc',
+            'filename' => 'filename.txt',
+            'mimetype' => 'plain/text', // All mimetypes are accepted by default.
+            'filesize' => '40000000', // The default max is 4GB so we set this to 40MB to not trigger errors.
         ]);
 
         $triggeredevents = $sink->get_events();

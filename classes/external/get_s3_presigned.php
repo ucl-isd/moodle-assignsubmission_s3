@@ -18,18 +18,13 @@ namespace assignsubmission_s3\external;
 
 global $CFG;
 require_once($CFG->dirroot . '/mod/assign/locallib.php');
+require_once($CFG->dirroot . '/mod/assign/submission/s3/locallib.php');
 
-use assign;
 use assign_submission_s3;
-use assignsubmission_s3\persistent\assignsubmission_s3;
-use context_module;
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use assignsubmission_s3\s3;
-use core_form\filetypes_util;
-use stdClass;
 
 /**
  * External service to get a generated pre-signed S3 URL.
@@ -68,90 +63,27 @@ class get_s3_presigned extends external_api {
     }
 
     public static function execute(int $assignmentid, string $filename, string $mimetype, string $filesize): array {
-        global $USER;
 
-        $context = context_module::instance($assignmentid);
-        $assignment = new assign($context, null, null);
-
-        if (!self::is_allowed_filesize((int) $filesize)) {
+        $error = assign_submission_s3::validate_submission($filename, $filesize);
+        if (!empty($error)) {
             return [
                 'error' => true,
                 'error_title' => get_string('error'),
-                'error_msg' => get_string(
-                    'error:filesize',
-                    'assignsubmission_s3',
-                    assign_submission_s3::get_human_readable_size($filesize),
-                ),
+                'error_msg' => $error,
+                's3url' => '',
             ];
         }
 
-        if (!self::is_allowed_filetype($filename)) {
-            return [
-                'error' => true,
-                'error_title' => get_string('error'),
-                'error_msg' => get_string('error:filetype', 'assignsubmission_s3', $filename),
-            ];
-        }
-
-        // Get the users submission (creating one if one doesn't exist).
-        $submission = $assignment->get_user_submission($USER->id, true);
-
-        $fs = get_file_storage();
-        $fs->delete_area_files($context->id, assign_submission_s3::FILECOMPONENT, assign_submission_s3::FILEAREA, $submission->id);
-
-        // Create a file with an empty string so that we can store the mime/type, name, and size for download.
-        $filerecord = new stdClass();
-        $filerecord->contextid = $context->id;
-        $filerecord->component = assign_submission_s3::FILECOMPONENT;
-        $filerecord->filearea = assign_submission_s3::FILEAREA;
-        $filerecord->itemid = $submission->id;
-        $filerecord->filepath = '/';
-        $filerecord->filename = $filename;
-        $filerecord->mimetype = $mimetype;
-
-        $fs->create_file_from_string($filerecord, '');
-
-        $s3submission = assignsubmission_s3::get_record([
-            'usermodified' => $USER->id,
-            'assignment' => $assignmentid,
-            'submission' => $submission->id,
-        ]);
-        if (!$s3submission) {
-            // Saving the new record will create a UUID for the user on this asignment.
-            $s3submission = new assignsubmission_s3();
-            $s3submission->set_many([
-                'assignment' => $assignmentid,
-                'submission' => $submission->id,
-            ]);
-            $s3submission->save();
-        }
-
-        $s3 = new s3();
-        $request = $s3->create_presigned_request($s3submission->get('uuid'));
+        [$error, $s3url] = assign_submission_s3::generate_pre_signed(
+            $assignmentid,
+            assign_submission_s3::create_submission($assignmentid, $filename, $mimetype)
+        );
 
         return [
-            'error' => false,
-            's3_url' => (string) $request->getUri()
+            'error' => !empty($error),
+            'error_title' => get_string('error'),
+            'error_msg' => $error,
+            's3_url' => $s3url,
         ];
-    }
-
-    /**
-     * Check if the file provided is of teh right type to be uploaded.
-     *
-     * @param string $filename
-     * @return bool
-     */
-    public static function is_allowed_filetype(string $filename): bool {
-        return (new filetypes_util())->is_allowed_file_type($filename, assign_submission_s3::get_filetypes());
-    }
-
-    /**
-     * Check if the file provided is of the right size to be uploaded.
-     *
-     * @param int $filesize
-     * @return bool
-     */
-    public static function is_allowed_filesize(int $filesize): bool {
-        return $filesize <= assign_submission_s3::get_maxfilesize();
     }
 }

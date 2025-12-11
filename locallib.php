@@ -17,6 +17,7 @@ use assignsubmission_s3\event\assessable_uploaded;
 use assignsubmission_s3\event\submission_created;
 use assignsubmission_s3\event\submission_updated;
 use assignsubmission_s3\persistent\assignsubmission_s3;
+use assignsubmission_s3\s3;
 use core_form\filetypes_util;
 
 /**
@@ -252,6 +253,14 @@ class assign_submission_s3 extends assign_submission_plugin {
         return true;
     }
 
+    /**
+     * Save any custom data for this form submission.
+     * As we would have already processed the file, this is just event triggers.
+     *
+     * @param stdClass $submissionorgrade
+     * @param stdClass $data
+     * @return bool
+     */
     public function save(stdClass $submissionorgrade, stdClass $data): bool {
         global $USER, $DB;
 
@@ -296,7 +305,8 @@ class assign_submission_s3 extends assign_submission_plugin {
         ];
 
         $filesubmission = $this->get_file_submission($submissionorgrade->id);
-        if ($filesubmission) {
+        if ($filesubmission->get('status') === assignsubmission_s3::STATUS_REMOTE_STANDARD) {
+            // If the status is remote then we're updating an existing submission.
             $filesubmission->save();
 
             $params['objectid'] = $filesubmission->get('id');
@@ -306,10 +316,8 @@ class assign_submission_s3 extends assign_submission_plugin {
             $event->trigger();
             return true;
         } else {
-            $filesubmission = new assignsubmission_s3([
-                'submission' => $submissionorgrade->id,
-                'assignment' => $this->assignment->get_instance()->id,
-            ]);
+            // Otherwise it's a new file we've processed, so set the status to now be remote.
+            $filesubmission->set('status', assignsubmission_s3::STATUS_REMOTE_STANDARD);
             $filesubmission->save();
             $params['objectid'] = $filesubmission->get('id');
 
@@ -330,9 +338,12 @@ class assign_submission_s3 extends assign_submission_plugin {
     public function remove(stdClass $submission): void {
         // Delete the custom table reference and file in the bucket.
         if ($s3submission = $this->get_file_submission($submission->id)) {
-            $s3 = new \assignsubmission_s3\s3((array) $this->get_config());
-            $s3->delete_object($s3submission->get('uuid'));
-            $s3submission->delete();
+            $s3 = new \assignsubmission_s3\s3($this->assignment);
+            // Only trigger the delete if we can connect to AWS.
+            if (!$s3->has_error()) {
+                $s3->delete_object($s3submission->get('uuid'));
+                $s3submission->delete();
+            }
         }
 
         // Delete the stub file.
@@ -422,6 +433,105 @@ class assign_submission_s3 extends assign_submission_plugin {
         return $this->assignment->render_area_files('assignsubmission_s3', self::FILEAREA, $submissionorgrade->id);
     }
 
+    public static function validate_submission($filename, $filesize, ): string {
+        if (!self::is_allowed_filesize((int) $filesize)) {
+            return get_string(
+                'error:filesize',
+                'assignsubmission_s3',
+                assign_submission_s3::get_human_readable_size(assign_submission_s3::get_maxfilesize()),
+            );
+        }
+
+        if (!self::is_allowed_filetype($filename)) {
+            return get_string('error:filetype', 'assignsubmission_s3', $filename);
+        }
+        return '';
+    }
+
+    /**
+     * Generate the stub file and assignsubmission_s3 record.
+     *
+     * @param $assignmentid
+     * @param $filename
+     * @param $mimetype
+     * @return assignsubmission_s3
+     */
+    public static function create_submission($assignmentid, $filename, $mimetype): assignsubmission_s3 {
+        global $USER;
+
+        $context = context_module::instance($assignmentid);
+        $assignment = new assign($context, null, null);
+
+        // Get the users submission (creating one if one doesn't exist).
+        $instance = $assignment->get_instance();
+
+        if ($instance->teamsubmission) {
+            $submission = $assignment->get_group_submission($USER->id, 0, true);
+        } else {
+            $submission = $assignment->get_user_submission($USER->id, true);
+        }
+        $fs = get_file_storage();
+        $fs->delete_area_files($context->id, assign_submission_s3::FILECOMPONENT, assign_submission_s3::FILEAREA, $submission->id);
+
+        // Create a file with an empty string so that we can store the mime/type, name, and size for download.
+        $filerecord = new stdClass();
+        $filerecord->contextid = $context->id;
+        $filerecord->component = assign_submission_s3::FILECOMPONENT;
+        $filerecord->filearea = assign_submission_s3::FILEAREA;
+        $filerecord->itemid = $submission->id;
+        $filerecord->filepath = '/';
+        $filerecord->filename = $filename;
+        $filerecord->mimetype = $mimetype;
+
+        $fs->create_file_from_string($filerecord, '');
+
+        $s3submission = assignsubmission_s3::get_record([
+            'usermodified' => $USER->id,
+            'assignment' => $assignmentid,
+            'submission' => $submission->id,
+        ]);
+        if (!$s3submission) {
+            // Saving the new record will create a UUID for the user on this asignment.
+            $s3submission = new assignsubmission_s3();
+            $s3submission->set_many([
+                'assignment' => $assignmentid,
+                'submission' => $submission->id,
+            ]);
+            $s3submission->save();
+        }
+        return $s3submission;
+    }
+
+    /**
+     * Generate the pre-signed url.
+     *
+     * @param $assignmentid
+     * @param $s3submission
+     * @param null $handler
+     * @return array An array of an error string and/or the pre-signed url.
+     */
+    public static function generate_pre_signed($assignmentid, $s3submission, $handler = null): array {
+        $context = context_module::instance($assignmentid);
+        $assignment = new assign($context, null, null);
+
+        $s3 = new s3($assignment, $handler);
+        // If the connection failed (due to permissions or config) return an error.
+        if ($s3->has_error()) {
+            return [
+                $s3->get_error(),
+                '',
+            ];
+        }
+        $request = $s3->create_presigned_request($s3submission->get('uuid'));
+        $s3url = (string)$request->getUri();
+
+        return [
+            '',
+            $s3url,
+        ];
+
+    }
+
     /**
      * Get the max allowed filesize for the upload.
      *
@@ -455,5 +565,25 @@ class assign_submission_s3 extends assign_submission_plugin {
         $sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
         return sprintf('%.02F', $size / pow(1024, $i)) * 1 . ' ' . $sizes[$i];
+    }
+
+    /**
+     * Check if the file provided is of teh right type to be uploaded.
+     *
+     * @param string $filename
+     * @return bool
+     */
+    public static function is_allowed_filetype(string $filename): bool {
+        return (new filetypes_util())->is_allowed_file_type($filename, self::get_filetypes());
+    }
+
+    /**
+     * Check if the file provided is of the right size to be uploaded.
+     *
+     * @param int $filesize
+     * @return bool
+     */
+    public static function is_allowed_filesize(int $filesize): bool {
+        return $filesize <= self::get_maxfilesize();
     }
 }

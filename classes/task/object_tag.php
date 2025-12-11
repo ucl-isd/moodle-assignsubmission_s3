@@ -32,8 +32,8 @@ class object_tag extends scheduled_task {
     /**
      * @inheritDoc
      */
-    public function get_name() {
-        // TODO: Implement get_name() method.
+    public function get_name(): string {
+        return get_string('task:obect_tag', 'assignsubmission_s3');
     }
 
     /**

@@ -14,38 +14,51 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace event;
+use advanced_testcase;
+use assign_submission_plugin;
+use assignsubmission_s3\s3;
+use Aws\CommandInterface;
+use Aws\MockHandler;
+use Aws\S3\Exception\S3Exception;
+use mod_assign_generator;
+use mod_assign_test_generator;
+use Psr\Http\Message\RequestInterface;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
 
 /**
- * Submission created event test.
+ * Connection issue event test.
  *
  * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class submission_created_test extends advanced_testcase {
+class connection_issue_test extends advanced_testcase
+{
 
     // Use the generator helper.
     use mod_assign_test_generator;
 
-    public function test_trigger_no_group() {
+    public function test_trigger_no_config()
+    {
         // Initial setup.
         $this->resetAfterTest();
-        $this->setAdminUser();
 
         // Create a course.
         $course = $this->getDataGenerator()->create_course();
 
         // Create a user.
         $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
         $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
 
         /* @var $assigngenerator mod_assign_generator */
-        $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
+        $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
         // Create an assign instance and get the course module.
         $assign = $this->create_instance($course);
@@ -64,56 +77,44 @@ class submission_created_test extends advanced_testcase {
         // Capture the events.
         $sink = $this->redirectEvents();
 
-        // Create a submission to trigger the event.
-        $assigngenerator->create_submission([
-            'cmid' => $assign->get_course_module()->id,
-            'userid' => $user->id,
-            's3' => true,
-            'filename' => 'filename.txt',
-            'mimetype' => 'plain/text', // All mimetypes are accepted by default.
-            'filesize' => '40000000', // The default max is 4GB so we set this to 40MB to not trigger errors.
-        ]);
+        // Initial call without any config.
+        new s3($assign);
 
         $triggeredevents = $sink->get_events();
 
-        // Event 0 should be assessable_uploaded.
-        // Event 1 should be assignsubmission_s3\event\submission_created.
-        $this->assertEquals(2, $sink->count());
+        // Event 0 should be connection_issue.
+        $this->assertEquals(1, $sink->count());
 
-        $event = $triggeredevents[1];
-        $this->assertInstanceOf('\assignsubmission_s3\event\submission_created', $event);
+        $event = $triggeredevents[0];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
         $this->assertEquals($assign->get_context(), $event->get_context());
         $this->assertEventContextNotUsed($event);
         $description = 'The user with id "' .
             $user->id .
-            '" created an S3 file submission and uploaded a file in the assignment with course module id "' .
+            '" was unable to upload to S3 in the assignment activity with course module id "' .
             $assign->get_course_module()->id .
-            '"';
+            '" due to the error: "Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_trigger_group() {
-
+    public function test_trigger_fake_config()
+    {
         // Initial setup.
         $this->resetAfterTest();
-        $this->setAdminUser();
 
         // Create a course.
         $course = $this->getDataGenerator()->create_course();
 
         // Create a user.
         $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
         $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
 
-        // Create a group and add the user.
-        $group = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
-        $this->getDataGenerator()->create_group_member(['groupid' => $group->id, 'userid' => $user->id]);
-
         /* @var $assigngenerator mod_assign_generator */
-        $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
+        $this->getDataGenerator()->get_plugin_generator('mod_assign');
 
         // Create an assign instance and get the course module.
-        $assign = $this->create_instance($course, ['teamsubmission' => true]);
+        $assign = $this->create_instance($course);
 
         // Enable the s3 submission plugin.
         /* @var assign_submission_plugin[] $submissionplugins */
@@ -129,34 +130,32 @@ class submission_created_test extends advanced_testcase {
         // Capture the events.
         $sink = $this->redirectEvents();
 
-        // Create a submission to trigger the event.
-        $assigngenerator->create_submission([
-            'cmid' => $assign->get_course_module()->id,
-            'userid' => $user->id,
-            'groupid' => $group->id,
-            's3' => true,
-            'filename' => 'filename.txt',
-            'mimetype' => 'plain/text', // All mimetypes are accepted by default.
-            'filesize' => '40000000', // The default max is 4GB so we set this to 40MB to not trigger errors.
-        ]);
+        $handler = new MockHandler();
+        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
+            return new S3Exception('The specified bucket does not exist', $cmd);
+        });
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+        new s3($assign, $handler);
 
         $triggeredevents = $sink->get_events();
 
-        // Event 0 should be assessable_uploaded.
-        // Event 1 should be assignsubmission_s3\event\submission_created.
-        $this->assertEquals(2, $sink->count());
+        // Event 0 should be connection_issue.
+        $this->assertEquals(1, $sink->count());
 
-        $event = $triggeredevents[1];
-        $this->assertInstanceOf('\assignsubmission_s3\event\submission_created', $event);
+        $event = $triggeredevents[0];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
         $this->assertEquals($assign->get_context(), $event->get_context());
         $this->assertEventContextNotUsed($event);
         $description = 'The user with id "' .
             $user->id .
-            '" created an S3 file submission and uploaded a file in the assignment with course module id "' .
+            '" was unable to upload to S3 in the assignment activity with course module id "' .
             $assign->get_course_module()->id .
-            '" for the group with id "' .
-            $group->id .
-            '"';
+            '" due to the error: "Permission check failed: The specified bucket does not exist"';
         $this->assertEquals($description, $event->get_description());
     }
 }

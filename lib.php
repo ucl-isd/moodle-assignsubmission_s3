@@ -95,7 +95,11 @@ function assignsubmission_s3_pluginfile(
         send_file_not_found();
     }
 
-    $s3 = new \assignsubmission_s3\s3();
+    $s3 = new \assignsubmission_s3\s3($assign);
+    // If the connection failed (due to permissions or config) send file not found.
+    if ($s3->has_error()) {
+        send_file_not_found();
+    }
     $object = new stdClass();
     $object->name = $file->get_filename();
     $object->mimetype = $file->get_mimetype();

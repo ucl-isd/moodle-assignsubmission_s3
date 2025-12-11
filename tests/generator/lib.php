@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+use assignsubmission_s3\external\get_s3_presigned;
+
 require_once("{$CFG->dirroot}/mod/assign/tests/generator/assignsubmission_subplugin_generator.php");
 
 /**
@@ -37,32 +39,8 @@ class assignsubmission_s3_generator extends assignsubmission_subplugin_generator
      * @param array $data The data received
      */
     public function add_submission_data(stdClass $submission, assign $assign, array $data): void {
-        global $CFG;
+        assign_submission_s3::create_submission($assign->get_course_module()->id, $data['filename'], $data['mimetype']);
 
-        if (array_key_exists('filepath', $data)) {
-            $itemid = file_get_unused_draft_itemid();
-
-            $fs = get_file_storage();
-
-            // All paths are relative to $CFG->dirroot.
-            $filepath = trim($data['filepath']);
-            $filepath = "{$CFG->dirroot}/{$filepath}";
-            $filename = basename($filepath);
-
-            $fs->create_file_from_pathname([
-                'itemid' => $itemid,
-                'contextid' => context_user::instance($submission->userid)->id,
-                'component' => 'user',
-                'filearea' => 'draft',
-                'filepath' => '/',
-                'filename' => $filename,
-            ], $filepath);
-            $submission->files_filemanager = $itemid;
-
-            $submission->file_editor = [
-                'itemid' => $itemid,
-            ];
-        }
         if (array_key_exists('groupid', $data)) {
             $submission->groupid = $data['groupid'];
         }

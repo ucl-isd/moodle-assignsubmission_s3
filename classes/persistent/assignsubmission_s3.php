@@ -59,7 +59,7 @@ class assignsubmission_s3 extends persistent {
             ],
             'status' => [
                 'type' => PARAM_INT,
-                'default' => self::STATUS_REMOTE_STANDARD,
+                'default' => self::STATUS_LOCAL,
             ],
             'location' => [
                 'type' => PARAM_TEXT,
