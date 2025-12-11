@@ -25,6 +25,13 @@
 
 namespace assignsubmission_s3\persistent;
 
+global $CFG;
+require_once($CFG->libdir . '/gradelib.php');
+require_once($CFG->dirroot . '/grade/querylib.php');
+require_once($CFG->dirroot . '/mod/assign/locallib.php');
+
+use assign;
+use context_module;
 use core\persistent;
 use core\uuid;
 
@@ -42,6 +49,8 @@ class assignsubmission_s3 extends persistent {
     /** @var int Status to indicate file is stored in S3 Glacier deep storage. */
     public const STATUS_REMOTE_GLACIER = 2;
 
+    /** @var array Local cache of assignments for performance. */
+    public static $assignments = [];
     /**
      * Return the definition of the properties of this model.
      *
@@ -92,5 +101,52 @@ class assignsubmission_s3 extends persistent {
             $uuid = uuid::generate();
         }
         return $uuid;
+    }
+
+    public static function get_standard_graded_records_before(int $time): array {
+        global $DB;
+
+        $return = [];
+        $cms = [];
+
+        // Get all standard records since.
+        $records = $DB->get_records_select(
+            self::TABLE,
+            'timemodified < ? AND status = ?',
+            [
+                $time,
+                self::STATUS_REMOTE_STANDARD,
+            ],
+        );
+
+        foreach ($records as $record) {
+            if (!isset($cms[$record->assignment])) {
+                [, $cm] = get_course_and_cm_from_cmid($record->assignment);
+                $cms[$record->assignment] = $cm;
+            }
+            if (grade_is_user_graded_in_activity($cms[$record->assignment], $record->usermodified)) {
+                $return[] = new static(0, $record);
+            }
+        }
+
+        return $return;
+    }
+
+    /**
+     * Get the assign class for the record.
+     *
+     * @return assign
+     */
+    public function get_assign(): assign {
+
+        if (isset(self::$assignments[$this->get('assignment')])) {
+            return self::$assignments[$this->get('assignment')];
+        }
+        self::$assignments[$this->get('assignment')] = new assign(
+            context_module::instance($this->get('assignment')),
+            null,
+            null,
+        );
+        return self::$assignments[$this->get('assignment')];
     }
 }

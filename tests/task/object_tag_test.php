@@ -14,6 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+use assignsubmission_s3\persistent\assignsubmission_s3;
+use assignsubmission_s3\task\object_tag;
+use Aws\CommandInterface;
+use Aws\MockHandler;
+use Aws\Result;
+use Aws\S3\Exception\S3Exception;
+use Psr\Http\Message\RequestInterface;
+
+defined('MOODLE_INTERNAL') || die();
+
+global $CFG;
+require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
+
 /**
  * Object tag test.
  *
@@ -22,3 +35,200 @@
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class object_tag_test extends advanced_testcase {
+    // Use the generator helper.
+    use mod_assign_test_generator;
+
+    private phpunit_event_sink $sink;
+
+    private mod_assign_testable_assign $assign;
+
+    public function test_task_config_issue() {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $this->create_graded_submission();
+        // Excute the task and capture the output.
+        ob_start();
+        $task = new object_tag();
+        $task->execute();
+        $output = ob_get_clean();
+
+        $this->assertEquals(
+            "Unable to process tag for " .
+            $this->assign->get_course_module()->id .
+            " due to: Permission check failed: Region/Bucket/KeyID/Secret not defined in config.\n",
+            $output,
+        );
+
+        $triggeredevents = $this->sink->get_events();
+
+        // Event 0 should be assessable_uploaded.
+        // Event 1 should be assignsubmission_s3\event\submission_created.
+        // Event 2 should be user_graded.
+        // Event 3 should be user_graded again.
+        // Event 4 should be submission_graded.
+        // Event 5 should be the connection_issue.
+        $this->assertEquals(6, $this->sink->count());
+
+        $event = $triggeredevents[5];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
+        $this->assertEquals($this->assign->get_context(), $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $description = 'The assignment activity with course module id "' .
+            $this->assign->get_course_module()->id .
+            '" was unable to connect with S3 due to the error: ' .
+            '"Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
+        $this->assertEquals($description, $event->get_description());
+    }
+
+    public function test_task_bucket_issue() {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $this->create_graded_submission();
+        // Define the mock handler for the task.
+        $handler = new MockHandler();
+        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
+            return new S3Exception('The specified bucket does not exist', $cmd);
+        });
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+
+        // Excute the task and capture the output, passing the handler.
+        ob_start();
+        $task = new object_tag();
+        $task->execute($handler);
+        $output = ob_get_clean();
+
+        $this->assertEquals(
+            "Unable to process tag for " .
+            $this->assign->get_course_module()->id .
+            " due to: Permission check failed: The specified bucket does not exist\n",
+            $output,
+        );
+
+        $triggeredevents = $this->sink->get_events();
+
+        // Event 0 should be assessable_uploaded.
+        // Event 1 should be assignsubmission_s3\event\submission_created.
+        // Event 2 should be user_graded.
+        // Event 3 should be user_graded again.
+        // Event 4 should be submission_graded.
+        // Event 5 should be the connection_issue.
+        $this->assertEquals(6, $this->sink->count());
+
+        $event = $triggeredevents[5];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
+        $this->assertEquals($this->assign->get_context(), $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $description = 'The assignment activity with course module id "' .
+            $this->assign->get_course_module()->id .
+            '" was unable to connect with S3 due to the error: ' .
+            '"Permission check failed: The specified bucket does not exist"';
+        $this->assertEquals($description, $event->get_description());
+    }
+
+    public function test_valid() {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $submission = $this->create_graded_submission();
+        // Define the mock handler for the task.
+        $handler = new MockHandler();
+        // Pass the initial permission check.
+        $handler->append(function (CommandInterface $cmd, RequestInterface $req) {
+            return new Result([
+                'ObjectURL' => 'https://test-object-url',
+                '@metadata' => [
+                    'statusCode' => 200,
+                ],
+            ]);
+        });
+        // Return a 200 for the valid object tagging.
+        $handler->append(new Result([]));
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+
+        // Excute the task and capture the output, passing the handler.
+        ob_start();
+        $task = new object_tag();
+        $task->execute($handler);
+        $output = ob_get_clean();
+
+        $this->assertEquals("Object: {$submission->uuid} tagged successfully\n", $output);
+    }
+
+    /**
+     * Create a graded submission for testing.
+     *
+     * @return stdClass
+     */
+    private function create_graded_submission(): stdClass {
+        global $DB;
+
+        // Create a course.
+        $course = $this->getDataGenerator()->create_course();
+
+        // Create a user and teacher (for grading).
+        $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
+        $teacher = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+
+        /* @var $assigngenerator mod_assign_generator */
+        $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
+
+        // Create an assign instance and get the course module.
+        $this->assign = $this->create_instance($course);
+
+        // Enable the s3 submission plugin.
+        /* @var assign_submission_plugin[] $submissionplugins */
+        $submissionplugins = $this->assign->get_submission_plugins();
+        foreach ($submissionplugins as $plugin) {
+            if ($plugin->get_type() === 's3') {
+                $plugin->enable();
+            } else {
+                $plugin->disable();
+            }
+        }
+
+        // Capture the events.
+        $this->sink = $this->redirectEvents();
+
+        // Create a submission to trigger the event.
+        $assigngenerator->create_submission([
+            'cmid' => $this->assign->get_course_module()->id,
+            'userid' => $user->id,
+            's3' => true,
+            'filename' => 'filename.txt',
+            'mimetype' => 'plain/text', // All mimetypes are accepted by default.
+            'filesize' => '40000000', // The default max is 4GB so we set this to 40MB to not trigger errors.
+        ]);
+
+        // Get the assignment we just created.
+        $s3submission = assignsubmission_s3::get_record(['usermodified' => $user->id]);
+        // We need to update the DB record via the global DB as the timemodified field
+        // doesn't use a dependency injectionable clock.
+        $id = $s3submission->get('id');
+        $submission = $DB->get_record(assignsubmission_s3::TABLE, ['id' => $id]);
+        // Set the timemodified to 100 days ago to pass the 90 day check in the task.
+        $submission->timemodified = (new DateTime('100 days ago'))->getTimestamp();
+        $DB->update_record(assignsubmission_s3::TABLE, $submission);
+
+        $this->mark_submission($teacher, $this->assign, $user, 100.0);
+
+        return $submission;
+    }
+}

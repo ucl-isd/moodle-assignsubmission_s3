@@ -132,8 +132,23 @@ class s3 {
         }
     }
 
-    public function create_tag($tagname, $object) {
-        $this->client->putObjectTagging();
+    public function add_tag($tagname, $key): void {
+        try {
+            $this->client->putObjectTagging([
+                'Bucket' => $this->bucket,
+                'Key' => $key,
+                'Tagging' => [
+                    'TagSet' => [
+                        [
+                            'Key' => 'glaciertag',
+                            'Value' => $tagname,
+                        ],
+                    ],
+                ],
+            ]);
+        } catch (S3Exception $e) {
+            $this->trigger_error_event("Add tag failed: {$e->getMessage()}");
+        }
     }
 
     /**

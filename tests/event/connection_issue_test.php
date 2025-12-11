@@ -44,8 +44,7 @@ class connection_issue_test extends advanced_testcase
     // Use the generator helper.
     use mod_assign_test_generator;
 
-    public function test_trigger_no_config()
-    {
+    public function test_trigger_no_config() {
         // Initial setup.
         $this->resetAfterTest();
 
@@ -89,16 +88,13 @@ class connection_issue_test extends advanced_testcase
         $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
         $this->assertEquals($assign->get_context(), $event->get_context());
         $this->assertEventContextNotUsed($event);
-        $description = 'The user with id "' .
-            $user->id .
-            '" was unable to upload to S3 in the assignment activity with course module id "' .
+        $description = 'The assignment activity with course module id "' .
             $assign->get_course_module()->id .
-            '" due to the error: "Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
+            '" was unable to connect with S3 due to the error: "Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
         $this->assertEquals($description, $event->get_description());
     }
 
-    public function test_trigger_fake_config()
-    {
+    public function test_trigger_fake_config() {
         // Initial setup.
         $this->resetAfterTest();
 
@@ -151,11 +147,9 @@ class connection_issue_test extends advanced_testcase
         $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
         $this->assertEquals($assign->get_context(), $event->get_context());
         $this->assertEventContextNotUsed($event);
-        $description = 'The user with id "' .
-            $user->id .
-            '" was unable to upload to S3 in the assignment activity with course module id "' .
+        $description = 'The assignment activity with course module id "' .
             $assign->get_course_module()->id .
-            '" due to the error: "Permission check failed: The specified bucket does not exist"';
+            '" was unable to connect with S3 due to the error: "Permission check failed: The specified bucket does not exist"';
         $this->assertEquals($description, $event->get_description());
     }
 }

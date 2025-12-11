@@ -103,15 +103,6 @@ $settings->add(
 
 $settings->add(
     new admin_setting_configduration(
-        'assignsubmission_s3/glacierduration',
-        new lang_string('setting:glacierduration', 'assignsubmission_s3'),
-        new lang_string('setting:glacierduration_help', 'assignsubmission_s3'),
-        7 * DAYSECS,
-    )
-);
-
-$settings->add(
-    new admin_setting_configduration(
         'assignsubmission_s3/glacierrestoreduration',
         new lang_string('setting:glacierrestoreduration', 'assignsubmission_s3'),
         new lang_string('setting:glacierrestoreduration_help', 'assignsubmission_s3'),
