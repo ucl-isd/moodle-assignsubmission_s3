@@ -29,42 +29,6 @@ use core_form\filetypes_util;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class assign_submission_s3 extends assign_submission_plugin {
-
-    /**
-     * Default max files.
-     */
-    public const DEFAULT_MAXFILES = 1;
-
-    /**
-     * Default max bytes value.
-     */
-    public const DEFAULT_MAXBYTESVALUE = 4;
-
-    /**
-     * Default max bytes unit.
-     */
-    public const DEFAULT_MAXBYTESUNIT = self::SIZE_UNIT_GIGABYTE;
-
-    /**
-     * File size KB.
-     */
-    public const SIZE_UNIT_KILOBYTE = 1024;
-
-    /**
-     * File size MB.
-     */
-    public const SIZE_UNIT_MEGABYTE = self::SIZE_UNIT_KILOBYTE * 1024;
-
-    /**
-     * File size GB.
-     */
-    public const SIZE_UNIT_GIGABYTE = self::SIZE_UNIT_MEGABYTE * 1024;
-
-    /**
-     * File size TB.
-     */
-    public const SIZE_UNIT_TERABYTE = self::SIZE_UNIT_GIGABYTE * 1024;
-
     /**
      * The file component to store file records in.
      */
@@ -538,9 +502,7 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @return int
      */
     public static function get_maxfilesize(): int {
-        $maxbytesvalue = get_config('assignsubmission_s3', 'maxbytesvalue');
-        $maxbytesunit = get_config('assignsubmission_s3', 'maxbytesunit');
-        return $maxbytesvalue * $maxbytesunit;
+        return get_config('assignsubmission_s3', 'maxsize');
     }
 
     /**

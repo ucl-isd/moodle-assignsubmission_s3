@@ -23,6 +23,9 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use assignsubmission_s3\admin\admin_setting_config_duration_custom;
+use assignsubmission_s3\admin\admin_setting_config_size;
+
 require_once(dirname(__FILE__) . '/locallib.php');
 
 $settings->add(
@@ -102,7 +105,7 @@ $settings->add(
 );
 
 $settings->add(
-    new admin_setting_configduration(
+    new admin_setting_config_duration_custom(
         'assignsubmission_s3/glacierrestoreduration',
         new lang_string('setting:glacierrestoreduration', 'assignsubmission_s3'),
         new lang_string('setting:glacierrestoreduration_help', 'assignsubmission_s3'),
@@ -122,16 +125,6 @@ $settings->add(
         1,
     )
 );
-//
-//$settings->add(
-//    new admin_setting_configtext(
-//        'assignsubmission_s3/maxfiles',
-//        new lang_string('setting:maxfiles', 'assignsubmission_s3'),
-//        new lang_string('setting:maxfiles_help', 'assignsubmission_s3'),
-//        assign_submission_s3::DEFAULT_MAXFILES,
-//        PARAM_INT,
-//    )
-//);
 
 $settings->add(
     new admin_setting_filetypes(
@@ -143,26 +136,9 @@ $settings->add(
 );
 
 $settings->add(
-    new admin_setting_configtext(
-        'assignsubmission_s3/maxbytesvalue',
-        new lang_string('setting:maxbytesvalue', 'assignsubmission_s3'),
-        new lang_string('setting:maxbytesvalue_help', 'assignsubmission_s3'),
-        assign_submission_s3::DEFAULT_MAXBYTESVALUE,
-        PARAM_INT,
-    )
-);
-
-$settings->add(
-    new admin_setting_configselect(
-        'assignsubmission_s3/maxbytesunit',
-        new lang_string('setting:maxbytesunit', 'assignsubmission_s3'),
-        new lang_string('setting:maxbytesunit_help', 'assignsubmission_s3'),
-        assign_submission_s3::SIZE_UNIT_GIGABYTE,
-        [
-            assign_submission_s3::SIZE_UNIT_KILOBYTE => new lang_string('sizekb'),
-            assign_submission_s3::SIZE_UNIT_MEGABYTE => new lang_string('sizemb'),
-            assign_submission_s3::SIZE_UNIT_GIGABYTE => new lang_string('sizegb'),
-            assign_submission_s3::SIZE_UNIT_TERABYTE => new lang_string('sizetb'),
-        ],
+    new admin_setting_config_size(
+        'assignsubmission_s3/maxsize',
+        new lang_string('setting:maxsize', 'assignsubmission_s3'),
+        new lang_string('setting:maxsize_help', 'assignsubmission_s3'),
     )
 );
