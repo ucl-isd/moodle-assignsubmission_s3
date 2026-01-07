@@ -75,4 +75,5 @@ $string['setting:region'] = 'Region';
 $string['setting:region_help'] = 'Amazon S3 API gateway region';
 $string['setting:secret'] = 'Secret';
 $string['setting:secret_help'] = 'Amazon S3 secret credential';
-$string['task:obect_tag'] = 'Object glacier tagging';
+$string['task:object_restore'] = 'Glacier object restoring';
+$string['task:object_tag'] = 'Object glacier tagging';

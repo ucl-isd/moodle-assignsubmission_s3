@@ -96,8 +96,14 @@ function assignsubmission_s3_pluginfile(
         'assignment' => $cm->id,
         'submission' => $itemid,
     ]);
+
     if (!$s3submission) {
         send_file_not_found();
+    }
+
+    // If the item is in glacier storage or in progress, redirect to confirmation page to retrieve it.
+    if ($s3submission->is_glacier() || $s3submission->is_requested()) {
+        redirect('/mod/assign/submission/s3/glacier.php', ['id' => $s3submission->get('id')]);
     }
 
     $s3 = new \assignsubmission_s3\s3($assign);

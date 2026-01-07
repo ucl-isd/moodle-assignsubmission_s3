@@ -37,12 +37,15 @@ class object_tag extends scheduled_task {
      * @return string
      */
     public function get_name(): string {
-        return get_string('task:obect_tag', 'assignsubmission_s3');
+        return get_string('task:object_tag', 'assignsubmission_s3');
     }
 
     /**
      * Do the job.
      * Throw exceptions on errors (the job will be retried).
+     *
+     * @param MockHandler|null $handler
+     * @return void
      */
     public function execute(?MockHandler $handler = null): void {
         // Get all standard status items where the items have been graded and 90 days have passed since upload.
