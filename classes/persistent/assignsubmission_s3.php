@@ -24,12 +24,14 @@ require_once($CFG->dirroot . '/grade/querylib.php');
 require_once($CFG->dirroot . '/mod/assign/locallib.php');
 
 use assign;
+use assign_submission_s3;
+use assignsubmission_s3\s3;
 use context_module;
 use core\persistent;
 use core\uuid;
 
 /**
- * Persistant class for assignsubmission_s3 table.
+ * Persistent class for assignsubmission_s3 table.
  *
  * @package   assignsubmission_s3
  * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
@@ -48,6 +50,12 @@ class assignsubmission_s3 extends persistent {
 
     /** @var int Status to indicate file is stored in S3 Glacier deep storage. */
     public const STATUS_REMOTE_GLACIER = 2;
+
+    /** @var int Status to indicate file is stored in S3 Glacier deep storage and has been requested to be downloaded */
+    public const STATUS_REMOTE_REQUESTED = 3;
+
+    /** @var int Status to indicate file is stored in S3 Glacier deep storage and has been restored */
+    public const STATUS_REMOTE_RESTORED = 4;
 
     /** @var array Local cache of assignments for performance. */
     public static array $assignments = [];
@@ -70,11 +78,6 @@ class assignsubmission_s3 extends persistent {
             'status' => [
                 'type' => PARAM_INT,
                 'default' => self::STATUS_LOCAL,
-            ],
-            'location' => [
-                'type' => PARAM_TEXT,
-                'null' => NULL_ALLOWED,
-                'default' => null,
             ],
             'expiry' => [
                 'type' => PARAM_INT,
@@ -140,6 +143,51 @@ class assignsubmission_s3 extends persistent {
     }
 
     /**
+     * Get all records in the requested status.
+     *
+     * @return assignsubmission_s3[]
+     */
+    public static function get_requested(): array {
+        return self::get_records(['status' => self::STATUS_REMOTE_REQUESTED]);
+    }
+
+    /**
+     * Return boolean for if the the object is in glacier storage and requested.
+     *
+     * @return bool
+     */
+    public function is_requested(): bool {
+        return $this->get('status') === self::STATUS_REMOTE_REQUESTED;
+    }
+
+    /**
+     * Get all records in the restored status.
+     *
+     * @return assignsubmission_s3[]
+     */
+    public static function get_restored(): array {
+        return self::get_records(['status' => self::STATUS_REMOTE_RESTORED]);
+    }
+
+    /**
+     * Return boolean for if the the object has been restored.
+     *
+     * @return bool
+     */
+    public function is_restored(): bool {
+        return $this->get('status') === self::STATUS_REMOTE_RESTORED;
+    }
+
+    /**
+     * Return boolean for if the the object is in glacier storage.
+     *
+     * @return bool
+     */
+    public function is_glacier(): bool {
+        return $this->get('status') === self::STATUS_REMOTE_GLACIER;
+    }
+
+    /**
      * Get the assign class for the record.
      *
      * @return assign
@@ -155,5 +203,29 @@ class assignsubmission_s3 extends persistent {
             null,
         );
         return self::$assignments[$this->get('assignment')];
+    }
+
+    /**
+     * After delete method to connect to AWS and remove the file from the bucket
+     * as well as removing teh stub file locally.
+     *
+     * @param $result
+     * @return void
+     */
+    public function after_delete($result) {
+        $s3 = new s3($this->get('assignment'));
+        // Only trigger the delete if we can connect to AWS.
+        if (!$s3->has_error()) {
+            $s3->delete_object($this->get('uuid'));
+        }
+
+        // Delete the stub file.
+        $fs = get_file_storage();
+        $fs->delete_area_files(
+            $this->get_assign()->get_context()->id,
+            'assignsubmission_s3',
+            assign_submission_s3::FILEAREA,
+            $this->get('submission'),
+        );
     }
 }

@@ -88,15 +88,21 @@ class assign_submission_s3 extends assign_submission_plugin {
 
         if (!empty($config->forceglobal)) {
             if (empty($config->region) || empty($config->bucket) || empty($config->secret) || empty($config->key)) {
+                $mform->addElement(
+                    'static',
+                    'misconfigured',
+                    '',
+                    $OUTPUT->notification(get_string('error:misconfigured', 'assignsubmission_s3'), 'error')
+                );
                 return;
             }
-            // Static elemment doesn't allow hideif so we use a group to do this (MDL-66251).
+            // Static element doesn't allow hideif so we use a group to do this (MDL-66251).
             $group = [];
             $group[] = $mform->createElement(
                 'static',
                 'assignsubmission_s3_label',
-                get_string('activitysetting:gclabel', 'assignsubmission_s3'),
-                get_string('activitysetting:gcwarning', 'assignsubmission_s3'),
+                '',
+                $OUTPUT->notification(get_string('activitysetting:globalwarning', 'assignsubmission_s3'), 'info')
             );
             $mform->addGroup($group, 's3labelgroup', '', ' ', false);
             $mform->hideIf('s3labelgroup', 'assignsubmission_s3_enabled');
@@ -107,7 +113,10 @@ class assign_submission_s3 extends assign_submission_plugin {
             'static',
             's3fromdatenotification',
             '',
-            $OUTPUT->notification(get_string('activitysetting:noallowsubmissionsfromdate', 'assignsubmission_s3'), 'info', false)
+            $OUTPUT->notification(
+                get_string('activitysetting:noallowsubmissionsfromdate', 'assignsubmission_s3'),
+                'info',
+            )
         );
         $mform->insertElementBefore($notification, 'allowsubmissionsfromdate');
         $mform->hideIf('s3fromdatenotification', 'assignsubmission_s3_enabled');
@@ -304,24 +313,10 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @throws coding_exception
      */
     public function remove(stdClass $submission): void {
-        // Delete the custom table reference and file in the bucket.
+        // Delete the custom table reference which triggers the deletion of the file in the bucket and stub files.
         if ($s3submission = $this->get_file_submission($submission->id)) {
-            $s3 = new \assignsubmission_s3\s3($this->assignment);
-            // Only trigger the delete if we can connect to AWS.
-            if (!$s3->has_error()) {
-                $s3->delete_object($s3submission->get('uuid'));
-                $s3submission->delete();
-            }
+            $s3submission->delete();
         }
-
-        // Delete the stub file.
-        $fs = get_file_storage();
-        $fs->delete_area_files(
-            $this->assignment->get_context()->id,
-            'assignsubmission_s3',
-            self::FILEAREA,
-            $submission->id,
-        );
     }
 
     /**
@@ -539,7 +534,7 @@ class assign_submission_s3 extends assign_submission_plugin {
     }
 
     /**
-     * Check if the file provided is of teh right type to be uploaded.
+     * Check if the file provided is of the right type to be uploaded.
      *
      * @param string $filename
      * @return bool

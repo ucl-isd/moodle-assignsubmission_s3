@@ -69,7 +69,7 @@ final class object_tag_test extends advanced_testcase {
         $this->setAdminUser();
 
         $this->create_graded_submission();
-        // Excute the task and capture the output.
+        // Execute the task and capture the output.
         ob_start();
         $task = new object_tag();
         $task->execute();
@@ -121,7 +121,7 @@ final class object_tag_test extends advanced_testcase {
         set_config('secret', 'fake-secret', 'assignsubmission_s3');
         set_config('key', 'fake-key', 'assignsubmission_s3');
 
-        // Excute the task and capture the output, passing the handler.
+        // Execute the task and capture the output, passing the handler.
         ob_start();
         $task = new object_tag();
         $task->execute($handler);

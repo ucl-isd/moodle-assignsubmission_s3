@@ -197,22 +197,76 @@ class s3 {
     }
 
     /**
-     * Restore the object from teh glacier archive.
+     * Restore the object from the glacier archive if restore not already in progress.
      *
      * @param $key
-     * @return void
+     * @return array Status and expiry date (if applicable).
      */
-    public function restore_object($key): void {
+    public function restore_object($key): array {
+        $return = [
+            'status' => false,
+            'expiry-date' => null,
+        ];
+
+        // Get the objects metadata.
+        $head = $this->client->headObject([
+            'Bucket' => $this->bucket,
+            'Key' => $key,
+        ]);
+
+        // If we have a restore in progress or requested it will come back in the head.
+        if (isset($head['Restore'])) {
+            // We already have a restore in progress.
+            if ($head['Restore'] === 'ongoing-request="true"') {
+                $return['status'] = true;
+                return $return;
+            }
+            // The restore was completed and expiration date is in the future, so return the expiration date.
+            if (str_contains($head['Restore'], 'ongoing-request="false"') && strtotime($head['Expires']) >= time()) {
+                $return['status'] = true;
+                $return['expiry-date'] = strtotime($head['Expires']);
+                return $return;
+            }
+        }
+
+        // Otherwise we either don't have an existing restore, or the previous one has expired, so make a new request.
+        $duration = get_config('assignsubmission_s3', 'glacierrestoreduration') ?? 7 * DAYSECS;
         try {
-            $this->client->restoreObject([
+            $result = $this->client->restoreObject([
                 'Bucket' => $this->bucket,
                 'Key' => $key,
                 'RestoreRequest' => [
-                    'Days' => ceil(get_config('assignsubmission_s3', 'glacierrestoreduration') / DAYSECS),
+                    'Days' => ceil($duration / DAYSECS),
                 ],
             ]);
         } catch (S3Exception $e) {
             $this->trigger_error_event("Restore object failed: {$e->getMessage()}");
+        }
+        $statuscode = $result['@metadata']['statusCode'];
+        // Action is either already processed or accepted, either way, valid.
+        if ($statuscode === 200 || $statuscode === 202) {
+            $return['status'] = true;
+        }
+        return $return;
+    }
+
+    /**
+     * Create a copy of an existing object.
+     * This is mainly used when backing up and restoring an assignment to the same site.
+     *
+     * @param $existingkey
+     * @param $newkey
+     * @return void
+     */
+    public function copy_object($existingkey, $newkey): void {
+        try {
+            $this->client->copyObject([
+                'Bucket' => $this->bucket,
+                'CopySource' => "$this->bucket/$existingkey",
+                'Key' => $newkey,
+            ]);
+        } catch (S3Exception $e) {
+            $this->trigger_error_event("Copy object failed: {$e->getMessage()}");
         }
     }
 

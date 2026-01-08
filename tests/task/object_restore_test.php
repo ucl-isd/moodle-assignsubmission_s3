@@ -17,7 +17,24 @@
 namespace assignsubmission_s3\task;
 
 use advanced_testcase;
+use assign_submission_plugin;
+use assignsubmission_s3\persistent\assignsubmission_s3;
+use assignsubmission_s3\persistent\assignsubmission_s3_requests;
+use Aws\CommandInterface;
+use Aws\MockHandler;
+use Aws\Result;
+use Aws\S3\Exception\S3Exception;
+use DateTime;
+use mod_assign_generator;
 use mod_assign_test_generator;
+use mod_assign_testable_assign;
+use phpunit_event_sink;
+use stdClass;
+
+defined('MOODLE_INTERNAL') || die();
+
+global $CFG;
+require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
 
 /**
  * Object restore test.
@@ -32,6 +49,269 @@ final class object_restore_test extends advanced_testcase {
     // Use the generator helper.
     use mod_assign_test_generator;
 
-    public function test_task(): void {
+    /**
+     * The event sink.
+     *
+     * @var phpunit_event_sink $eventsink
+     */
+    private phpunit_event_sink $eventsink;
+
+    /**
+     * The assign module.
+     *
+     * @var mod_assign_testable_assign
+     */
+    private mod_assign_testable_assign $assign;
+
+    public function test_task_empty(): void {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $this->create_graded_submission();
+        // Execute the task and capture the output.
+        ob_start();
+        $task = new object_restore();
+        $task->execute();
+        $output = ob_get_clean();
+
+        // We haven't requested a file yet, so there should be no output.
+        $this->assertEmpty($output);
+    }
+
+    public function test_task_config_issue(): void {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Create a "requested" submission.
+        $this->create_graded_submission(assignsubmission_s3::STATUS_REMOTE_REQUESTED);
+
+        // Execute the task and capture the output.
+        ob_start();
+        $task = new object_restore();
+        $task->execute();
+        $output = ob_get_clean();
+
+        $this->assertEquals("Permission check failed: Region/Bucket/KeyID/Secret not defined in config.\n", $output);
+
+        $triggeredevents = $this->eventsink->get_events();
+
+        // Event 0 should be assessable_uploaded.
+        // Event 1 should be assignsubmission_s3\event\submission_created.
+        // Event 2 should be user_graded.
+        // Event 3 should be user_graded again.
+        // Event 4 should be submission_graded.
+        // Event 5 should be the connection_issue.
+        $this->assertEquals(6, $this->eventsink->count());
+
+        $event = $triggeredevents[5];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
+        $this->assertEquals($this->assign->get_context(), $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $description = 'The assignment activity with course module id "' .
+            $this->assign->get_course_module()->id .
+            '" was unable to connect with S3 due to the error: ' .
+            '"Permission check failed: Region/Bucket/KeyID/Secret not defined in config."';
+        $this->assertEquals($description, $event->get_description());
+    }
+
+    public function test_task_bucket_issue(): void {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Create a "requested" submission.
+        $this->create_graded_submission(assignsubmission_s3::STATUS_REMOTE_REQUESTED);
+
+        // Define the mock handler for the task.
+        $handler = new MockHandler();
+        $handler->append(function (CommandInterface $cmd) {
+            return new S3Exception('The specified bucket does not exist', $cmd);
+        });
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+
+        // Execute the task and capture the output, passing the handler.
+        ob_start();
+        $task = new object_restore();
+        $task->execute($handler);
+        $output = ob_get_clean();
+
+        $this->assertEquals("Permission check failed: The specified bucket does not exist\n", $output);
+
+        $triggeredevents = $this->eventsink->get_events();
+
+        // Event 0 should be assessable_uploaded.
+        // Event 1 should be assignsubmission_s3\event\submission_created.
+        // Event 2 should be user_graded.
+        // Event 3 should be user_graded again.
+        // Event 4 should be submission_graded.
+        // Event 5 should be the connection_issue.
+        $this->assertEquals(6, $this->eventsink->count());
+
+        $event = $triggeredevents[5];
+        $this->assertInstanceOf('\assignsubmission_s3\event\connection_issue', $event);
+        $this->assertEquals($this->assign->get_context(), $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $description = 'The assignment activity with course module id "' .
+            $this->assign->get_course_module()->id .
+            '" was unable to connect with S3 due to the error: ' .
+            '"Permission check failed: The specified bucket does not exist"';
+        $this->assertEquals($description, $event->get_description());
+    }
+
+    public function test_valid_initial_restore_request(): void {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Create a "requested" submission.
+        $submission = $this->create_graded_submission(assignsubmission_s3::STATUS_REMOTE_REQUESTED);
+
+        // Define the mock handler for the task.
+        $handler = new MockHandler();
+        // Return a empty result to pass permission check.
+        $handler->append(new Result([]));
+        // Return a empty result for restoreObject request accepted.
+        $handler->append(new Result([]));
+        // Return restore header ongoing.
+        $handler->append(new Result(['Restore' => 'ongoing-request="true"']));
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+
+        // Execute the task and capture the output, passing the handler.
+        ob_start();
+        $task = new object_restore();
+        $task->execute($handler);
+        $output = ob_get_clean();
+
+        $this->assertEquals("Object: {$submission->uuid} restore in progress\n", $output);
+    }
+
+    public function test_valid_final_restore_request(): void {
+        // Initial setup.
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Create a "requested" submission.
+        $submission = $this->create_graded_submission(assignsubmission_s3::STATUS_REMOTE_REQUESTED);
+
+        // Define the mock handler for the task.
+        $handler = new MockHandler();
+        // Return a empty result to pass permission check.
+        $handler->append(new Result([]));
+        // Return restore header complete with expiry date a week from now to pass valid checks.
+        $expirydate = date('D, d M Y', time() + WEEKSECS) . ' 00:00:00 GMT';
+        $handler->append(new Result([
+            'Restore' => 'ongoing-request="false", expiry-date="' . $expirydate . '"',
+            'Expires' => $expirydate,
+        ]));
+
+        // Set some fake global config to pass the "configured" check.
+        set_config('region', 'fake-region', 'assignsubmission_s3');
+        set_config('bucket', 'fake-bucket', 'assignsubmission_s3');
+        set_config('secret', 'fake-secret', 'assignsubmission_s3');
+        set_config('key', 'fake-key', 'assignsubmission_s3');
+
+        // Execute the task passing the handler, and capture the output and messages.
+        $messagesink = $this->redirectMessages();
+        ob_start();
+        $task = new object_restore();
+        $task->execute($handler);
+        $output = ob_get_clean();
+
+        $messages = $messagesink->get_messages();
+        $this->assertCount(1, $messages);
+        $this->assertEquals('restored', $messages[0]->eventtype);
+        $messagesink->close();
+    }
+
+    /**
+     * Create a graded submission for testing.
+     *
+     * @param int $status
+     * @return stdClass
+     */
+    private function create_graded_submission(int $status = assignsubmission_s3::STATUS_REMOTE_STANDARD): stdClass {
+        global $DB;
+
+        // Create a course.
+        $course = $this->getDataGenerator()->create_course();
+
+        // Create a user and teacher (for grading).
+        $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
+
+        $teacher = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher');
+        $teacherrole = $DB->get_record('role', ['shortname' => 'teacher']);
+        $coursecontext = \context_course::instance($course->id);
+        $this->getDataGenerator()->role_assign($teacherrole->id, $teacher->id, $coursecontext->id);
+
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
+        /* @var $assigngenerator mod_assign_generator */
+        $assigngenerator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
+
+        // Create an assign instance and get the course module.
+        $this->assign = $this->create_instance($course);
+
+        // Enable the s3 submission plugin.
+        // phpcs:ignore Squiz.PHP.CommentedOutCode
+        /* @var assign_submission_plugin[] $submissionplugins */
+        $submissionplugins = $this->assign->get_submission_plugins();
+        foreach ($submissionplugins as $plugin) {
+            if ($plugin->get_type() === 's3') {
+                $plugin->enable();
+            } else {
+                $plugin->disable();
+            }
+        }
+
+        // Capture the events.
+        $this->eventsink = $this->redirectEvents();
+
+        // Create a submission to trigger the event.
+        $assigngenerator->create_submission([
+            'cmid' => $this->assign->get_course_module()->id,
+            'userid' => $user->id,
+            's3' => true,
+            'filename' => 'filename.txt',
+            'mimetype' => 'plain/text', // All mimetypes are accepted by default.
+            'filesize' => '40000000', // The default max is 4GB so we set this to 40MB to not trigger errors.
+        ]);
+
+        // Get the assignment we just created.
+        $s3submission = assignsubmission_s3::get_record(['usermodified' => $user->id]);
+        // We need to update the DB record via the global DB as the timemodified field
+        // doesn't use a dependency injectionable clock.
+        $id = $s3submission->get('id');
+        $submission = $DB->get_record(assignsubmission_s3::TABLE, ['id' => $id]);
+        // Set the timemodified to 100 days ago to pass the 90 day check in the task.
+        $submission->timemodified = (new DateTime('100 days ago'))->getTimestamp();
+        $submission->status = $status;
+        $DB->update_record(assignsubmission_s3::TABLE, $submission);
+
+        // If it's a requested submission, add a requester.
+        if ($status === assignsubmission_s3::STATUS_REMOTE_REQUESTED) {
+            $request = new assignsubmission_s3_requests();
+            $request->set_many([
+                'ass3id' => $submission->id,
+                'requester' => $teacher->id,
+            ]);
+            $request->save();
+        }
+
+        $this->mark_submission($teacher, $this->assign, $user, 100.0);
+
+        return $submission;
     }
 }

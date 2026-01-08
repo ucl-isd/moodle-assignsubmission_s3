@@ -34,4 +34,12 @@ $capabilities = [
             'manager' => CAP_ALLOW,
         ],
     ],
+    'assignsubmission/s3:glacier_request' => [
+        'riskbitmask' => RISK_MANAGETRUST,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => [
+            'teacher' => CAP_ALLOW,
+        ],
+    ],
 ];

@@ -31,7 +31,6 @@ require_once($CFG->dirroot . '/mod/assign/submission/s3/locallib.php');
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class restore_assignsubmission_s3_subplugin extends restore_subplugin {
-
     /**
      * Returns the paths to be handled by the subplugin at workshop level
      * @return array
@@ -77,5 +76,4 @@ class restore_assignsubmission_s3_subplugin extends restore_subplugin {
             $oldsubmissionid,
         );
     }
-
 }

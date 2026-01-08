@@ -27,8 +27,7 @@ $string['activitysetting:baseurl'] = 'Base URL';
 $string['activitysetting:baseurl_help'] = 'Alternate URL for S3 compatible endpoints. Leave blank for normal S3 use';
 $string['activitysetting:bucket'] = 'Bucket';
 $string['activitysetting:bucket_help'] = 'Amazon S3 bucket to store files in';
-$string['activitysetting:gclabel'] = 'Global credentials';
-$string['activitysetting:gcwarning'] = 'S3 credentials have been set globally';
+$string['activitysetting:globalwarning'] = 'S3 credentials have been set globally';
 $string['activitysetting:key'] = 'Key';
 $string['activitysetting:key_help'] = 'Amazon S3 key credential';
 $string['activitysetting:noallowsubmissionsfromdate'] = 'As S3 submissions is enabled "Allow submissions from date" will be set automatically to 14 days prior to due date';
@@ -40,6 +39,7 @@ $string['enabled'] = 'S3 submissions';
 $string['enabled_help'] = 'If enabled, students are able to upload one or more files as their submission to S3.';
 $string['error:filesize'] = 'The max file size of {$a} has been exceeded.';
 $string['error:filetype'] = 'The file {$a} is an invalid file type.';
+$string['error:misconfigured'] = 'Force global is enabled, but the site settings are incorrect. Please contact the site administrator.';
 $string['error:request'] = 'Unable to connect to S3, please contact the site administrator.';
 $string['event:assessable_uploaded:description'] = 'The user with id "{$a->userid}" has uploaded a file to the submission with id "{$a->objectid}" in the assignment activity with course module id "{$a->contextinstanceid}"';
 $string['event:connection_issue:description'] = 'The assignment activity with course module id "{$a->contextinstanceid}" was unable to connect with S3 due to the error: "{$a->error}"';
@@ -48,9 +48,25 @@ $string['event:submission_created:description'] = 'The user with id "{$a->userid
 $string['event:submission_created:description_group'] = 'The user with id "{$a->userid}" created an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}" for the group with id "{$a->groupid}"';
 $string['event:submission_updated:description'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}"';
 $string['event:submission_updated:description_group'] = 'The user with id "{$a->userid}" updated an S3 file submission and uploaded a file in the assignment with course module id "{$a->contextinstanceid}" for the group with id "{$a->groupid}"';
+$string['glacier:already_requested'] = 'You have already requested for this submission file to be restored from the archive. You will be notified when it is ready.';
+$string['glacier:already_restored'] = 'This submission file has already been restored. Please download it via the standard means.';
+$string['glacier:confirm'] = 'This submission file has been transferred to archival storage. Requesting this file can take up to 48 hours and you will be notified when it is ready and for how long the file will be available. Additionally, requesting a file from archive will cause this institution to pay additional costs. Please confirm that you would like to proceed in restoring this submission';
+$string['glacier:confirm:notified'] = 'This submission file has already been requested and will be restored from the archive in the next 48 hours. Would you like to be notified when the file is ready and for how long the file will be available?';
+$string['glacier:heading'] = 'Restore from archive storage';
+$string['glacier:permission_denied'] = 'This submission file has been transferred to archival storage. Unfortunately you do not have permission to restore this file.';
+$string['glacier:requested'] = 'The submission file has been requested. You will be notified when it is ready for download.';
+$string['message:restored:body'] = 'The file that you requested is now available for download. See further information and links below:
+* Course: {$a->course}
+* Assignment: {$a->assignment}
+* File: <a href="{$a->link}">{$a->link}</a>
+* Available until: {$a->expiry}
+';
+$string['message:restored:subject'] = 'Requested submission file is available for download.';
+$string['messageprovider:restored'] = 'Notification submission file has been restored.';
 $string['pluginname'] = 'S3 submissions';
 $string['s3'] = 'S3 submission';
 $string['s3:configure'] = 'Configure S3 submission';
+$string['s3:glacier_request'] = 'Request a submission from S3 archive storage';
 $string['setting:acceptedfiletypes'] = 'Accepted file types';
 $string['setting:acceptedfiletypes_help'] = 'Accepted file types can be restricted by entering a list of file extensions. If the field is left empty, then all file types are allowed.';
 $string['setting:baseurl'] = 'Base URL';
