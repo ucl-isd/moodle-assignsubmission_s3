@@ -213,7 +213,7 @@ class assignsubmission_s3 extends persistent {
      * @return void
      */
     public function after_delete($result) {
-        $s3 = new s3($this->get('assignment'));
+        $s3 = new s3($this->get_assign());
         // Only trigger the delete if we can connect to AWS.
         if (!$s3->has_error()) {
             $s3->delete_object($this->get('uuid'));

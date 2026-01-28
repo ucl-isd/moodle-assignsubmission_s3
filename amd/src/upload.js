@@ -32,6 +32,8 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
     module.init = function(assignmentId) {
         // Get the various elements and containers.
         const form = document.querySelector('.editsubmissionform form');
+        const statement = document.getElementById('id_submissionstatement');
+        const buttons = document.getElementById('fgroup_id_buttonar');
         const file = document.querySelector('input[name="s3_file"]');
         const fileContainer = document.getElementById('s3-file-container');
         const progress = document.getElementById('progress-bar');
@@ -39,7 +41,9 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
         const progressContainer = document.getElementById('progress-bar-container');
 
         form.addEventListener('submit', function(e) {
+          if (!statement || (statement && statement.checked)) {
             e.preventDefault();
+            buttons.classList.add("hidden");
             const upload = file.files[0];
             let request = ajax.call([{
               methodname: 'assignsubmission_s3_get_s3_presigned',
@@ -81,6 +85,7 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
                 req.send(payload);
               }
             }).fail(notification.exception);
+          }
         });
     };
 

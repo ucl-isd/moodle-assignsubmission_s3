@@ -34,7 +34,44 @@ use mod_assign\privacy\useridlist;
  * @copyright Catalyst IT, 2025
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements assignsubmission_provider, assignsubmission_user_provider, \core_privacy\local\metadata\provider {
+class provider implements
+    assignsubmission_provider,
+    assignsubmission_user_provider,
+    \core_privacy\local\metadata\provider
+{
+    /**
+     * Return meta data about this plugin.
+     *
+     * @param  collection $collection A list of information to add to.
+     * @return collection Return the collection after adding to it.
+     */
+    public static function get_metadata(collection $collection): collection {
+        $collection->link_subsystem(
+            'core_files',
+            'privacy:metadata:filepurpose',
+        );
+        $collection->add_database_table(
+            'assignsubmission_s3',
+            [
+                'timecreated' => 'privacy:metadata:timecreated',
+                'timemodified' => 'privacy:metadata:timemodified',
+                'usermodified' => 'privacy:metadata:usermodified',
+            ],
+            'privacy:metadata:assignsubmission_s3',
+        );
+        $collection->add_database_table(
+            'assignsubmission_s3_requests',
+            [
+                'timecreated' => 'privacy:metadata:timecreated',
+                'timemodified' => 'privacy:metadata:timemodified',
+                'requester' => 'privacy:metadata:requester',
+                'usermodified' => 'privacy:metadata:usermodified',
+            ],
+            'privacy:metadata:assignsubmission_s3_requests',
+        );
+
+        return $collection;
+    }
     /**
      * This is covered by mod_assign provider.
      *
@@ -147,16 +184,5 @@ class provider implements assignsubmission_provider, assignsubmission_user_provi
         foreach ($s3submissions as $s3submission) {
             $s3submission->delete();
         }
-    }
-
-    /**
-     * Return meta data about this plugin.
-     *
-     * @param  collection $collection A list of information to add to.
-     * @return collection Return the collection after adding to it.
-     */
-    public static function get_metadata(collection $collection): collection {
-        $collection->link_subsystem('core_files', 'privacy:metadata:filepurpose');
-        return $collection;
     }
 }
