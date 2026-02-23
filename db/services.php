@@ -26,9 +26,16 @@
 defined('MOODLE_INTERNAL') || die();
 
 $functions = [
-    'assignsubmission_s3_get_s3_presigned' => [
-        'classname'    => 'assignsubmission_s3\external\get_s3_presigned',
+    'assignsubmission_s3_get_multipart_upload' => [
+        'classname'    => 'assignsubmission_s3\external\get_multipart_upload',
         'description'  => 'Get the S3 upload url for assignsubmission S3.',
+        'type'         => 'write',
+        'capabilities' => 'mod/assign:submit',
+        'ajax'         => true,
+    ],
+    'assignsubmission_s3_send_multipart_complete' => [
+        'classname'    => 'assignsubmission_s3\external\send_multipart_complete',
+        'description'  => 'Send the multipart complete API request for the multipart uploads.',
         'type'         => 'write',
         'capabilities' => 'mod/assign:submit',
         'ajax'         => true,

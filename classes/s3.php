@@ -64,6 +64,9 @@ class s3 {
     /** @var assign The assignment we're processing the upload for. */
     private assign $assignment;
 
+    /** @var string The upload ID for the multipart upload. */
+    private string $uploadid;
+
     /**
      * Constructor class.
      *
@@ -190,7 +193,7 @@ class s3 {
                     'ResponseContentDisposition' => 'attachment; filename="' . $object->name . '"',
                     'ResponseContentType' => $object->mimetype,
                 ]),
-                '+1 hour'
+                '+3 hour'
             );
         }
         return null;
@@ -306,8 +309,76 @@ class s3 {
                 'Bucket' => $this->bucket,
                 'Key' => $key,
             ]),
-            '+1 hour'
+            '+3 hour'
         );
+    }
+
+    /**
+     * Return presigned URL for the UploadPart request.
+     *
+     * @param string $key
+     * @param int $part
+     * @return RequestInterface|null
+     */
+    public function create_presigned_part_upload_requests(string $key, int $part): ?RequestInterface {
+        if (!isset($this->uploadid)) {
+            $this->create_mulitpart_upload_id($key);
+        }
+        return $this->client->createPresignedRequest(
+            $this->client->getCommand('UploadPart', [
+                'Bucket' => $this->bucket,
+                'Key' => $key,
+                'UploadId' => $this->get_mulitpart_upload_id($key),
+                'PartNumber' => $part,
+            ]),
+            '+3 hour'
+        );
+    }
+
+    /**
+     * Return presigned URL for the CompleteMultipartUpload request.
+     *
+     * @param string $uploadid
+     * @param string $key
+     * @param array $parts
+     * @return void
+     */
+    public function send_presigned_part_upload_complete_request(string $uploadid, string $key, array $parts): void {
+        $this->client->CompleteMultipartUpload([
+            'Bucket'   => $this->bucket,
+            'Key'      => $key,
+            'UploadId' => $uploadid,
+            'MultipartUpload' => [
+                'Parts' => $parts,
+            ]
+        ]);
+    }
+
+    /**
+     * Get the upload id to use in the multi part upload request.
+     *
+     * @param string $key
+     * @return string
+     */
+    public function get_mulitpart_upload_id(string $key): string {
+        if (!isset($this->uploadid)) {
+            $this->create_mulitpart_upload_id($key);
+        }
+        return $this->uploadid;
+    }
+
+    /**
+     * Create the upload id to use in the multi part upload request.
+     *
+     * @param string $key
+     * @return void
+     */
+    private function create_mulitpart_upload_id(string $key): void {
+        $create = $this->client->createMultipartUpload([
+            'Bucket' => $this->bucket,
+            'Key' => $key,
+        ]);
+        $this->uploadid = $create['UploadId'];
     }
 
     /**

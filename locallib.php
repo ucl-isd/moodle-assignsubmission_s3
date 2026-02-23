@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+use assignsubmission_s3\admin\admin_setting_config_size;
 use assignsubmission_s3\event\assessable_uploaded;
 use assignsubmission_s3\event\submission_created;
 use assignsubmission_s3\event\submission_updated;
@@ -41,6 +42,11 @@ class assign_submission_s3 extends assign_submission_plugin {
     public const FILEAREA = 'submission_s3';
 
     /**
+     * The size of the chunks we are uploading.
+     */
+    public const FILECHUNKS = 10 * 1024 * 1024;
+
+    /**
      * The name of the submission plugin.
      *
      * @return string
@@ -61,7 +67,14 @@ class assign_submission_s3 extends assign_submission_plugin {
     public function get_form_elements_for_user($submissionorgrade, MoodleQuickForm $mform, stdClass $data, $userid): void {
         global $OUTPUT, $PAGE;
 
-        $PAGE->requires->js_call_amd('assignsubmission_s3/upload', 'init', [$this->assignment->get_course_module()->id]);
+        $PAGE->requires->js_call_amd(
+            'assignsubmission_s3/upload',
+            'init',
+            [
+                $this->assignment->get_course_module()->id,
+                self::FILECHUNKS,
+            ]
+        );
         $mform->addElement(
             'html',
             $OUTPUT->render_from_template(
@@ -402,7 +415,7 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @param string $filesize
      * @return string
      */
-    public static function validate_submission($filename, $filesize): string {
+    public static function validate_submission(string $filename, string $filesize): string {
         if (!self::is_allowed_filesize((int) $filesize)) {
             return get_string(
                 'error:filesize',
@@ -440,27 +453,28 @@ class assign_submission_s3 extends assign_submission_plugin {
             $submission = $assignment->get_user_submission($USER->id, true);
         }
         $fs = get_file_storage();
-        $fs->delete_area_files($context->id, self::FILECOMPONENT, self::FILEAREA, $submission->id);
+        if (!$fs->file_exists($context->id, self::FILECOMPONENT, self::FILEAREA, $submission->id, '/', $filename)) {
+            $fs->delete_area_files($context->id, self::FILECOMPONENT, self::FILEAREA, $submission->id);
 
-        // Create a file with an empty string so that we can store the mime/type, name, and size for download.
-        $filerecord = new stdClass();
-        $filerecord->contextid = $context->id;
-        $filerecord->component = self::FILECOMPONENT;
-        $filerecord->filearea = self::FILEAREA;
-        $filerecord->itemid = $submission->id;
-        $filerecord->filepath = '/';
-        $filerecord->filename = $filename;
-        $filerecord->mimetype = $mimetype;
+            // Create a file with an empty string so that we can store the mime/type, name, and size for download.
+            $filerecord = new stdClass();
+            $filerecord->contextid = $context->id;
+            $filerecord->component = self::FILECOMPONENT;
+            $filerecord->filearea = self::FILEAREA;
+            $filerecord->itemid = $submission->id;
+            $filerecord->filepath = '/';
+            $filerecord->filename = $filename;
+            $filerecord->mimetype = $mimetype;
 
-        $fs->create_file_from_string($filerecord, '');
-
+            $fs->create_file_from_string($filerecord, '');
+        }
         $s3submission = assignsubmission_s3::get_record([
             'usermodified' => $USER->id,
             'assignment' => $assignmentid,
             'submission' => $submission->id,
         ]);
         if (!$s3submission) {
-            // Saving the new record will create a UUID for the user on this asignment.
+            // Saving the new record will create a UUID for the user on this assignment.
             $s3submission = new assignsubmission_s3();
             $s3submission->set_many([
                 'assignment' => $assignmentid,
@@ -474,12 +488,19 @@ class assign_submission_s3 extends assign_submission_plugin {
     /**
      * Generate the pre-signed url.
      *
-     * @param $assignmentid
-     * @param $s3submission
+     * @param int $assignmentid
+     * @param assignsubmission_s3 $s3submission
+     * @param int $filesize
      * @param null $handler
-     * @return array An array of an error string and/or the pre-signed url.
+     * @return array An array of an error string and/or the pre-signed url and upload ID.
+     * @throws coding_exception
      */
-    public static function generate_pre_signed($assignmentid, $s3submission, $handler = null): array {
+    public static function generate_pre_signed(
+        int $assignmentid,
+        assignsubmission_s3 $s3submission,
+        int $filesize,
+        $handler = null
+    ): array {
         $context = context_module::instance($assignmentid);
         $assignment = new assign($context, null, null);
 
@@ -491,12 +512,21 @@ class assign_submission_s3 extends assign_submission_plugin {
                 '',
             ];
         }
-        $request = $s3->create_presigned_request($s3submission->get('uuid'));
-        $s3url = (string)$request->getUri();
+        $s3urls = [];
+        $parts = ceil($filesize / self::FILECHUNKS);
+        $key = $s3submission->get('uuid');
+        for ($partNumber = 1; $partNumber <= $parts; $partNumber++) {
+            $request = $s3->create_presigned_part_upload_requests(
+                $key,
+                $partNumber,
+            );
+            $s3urls[] = (string)$request->getUri();
+        }
 
         return [
             '',
-            $s3url,
+            $s3urls,
+            $s3->get_mulitpart_upload_id($key),
         ];
     }
 
