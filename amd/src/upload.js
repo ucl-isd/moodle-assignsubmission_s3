@@ -45,6 +45,14 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
         const progressContainer = document.getElementById('progress-bar-container');
 
         form.addEventListener('submit', function(e) {
+            // Cancelled, so do nothing.
+            if (e.submitter.name === 'cancel') {
+                return;
+            }
+            // No file submitted, so do nothing.
+            if (file.files.length <= 0) {
+                return;
+            }
             if (!statement || (statement && statement.checked)) {
                 e.preventDefault();
                 buttons.classList.add("hidden");
