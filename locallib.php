@@ -340,11 +340,26 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @return array
      */
     public function get_files(stdClass $submissionorgrade, stdClass $user): array {
-        return assignsubmission_s3::get_records([
-            'usermodified' => $user->id,
-            'assignment' => $this->assignment->get_course_module()->id,
-            'submission' => $submissionorgrade->id,
-        ]);
+        $result = [];
+        $fs = get_file_storage();
+
+        $files = $fs->get_area_files(
+            $this->assignment->get_context()->id,
+            self::FILECOMPONENT,
+            self::FILEAREA,
+            $submissionorgrade->id,
+            'timemodified, id',
+            false
+        );
+
+        foreach ($files as $file) {
+            if (isset($submissionorgrade->exportfullpath) && !$submissionorgrade->exportfullpath) {
+                $result[$file->get_filename() . '.txt'] = $file;
+            } else {
+                $result[$file->get_filepath() . $file->get_filename() . '.txt'] = $file;
+            }
+        }
+        return $result;
     }
 
     /**
@@ -466,7 +481,13 @@ class assign_submission_s3 extends assign_submission_plugin {
             $filerecord->filename = $filename;
             $filerecord->mimetype = $mimetype;
 
-            $fs->create_file_from_string($filerecord, '');
+            $message = get_string(
+                'file:string',
+                'assignsubmission_s3',
+                (new moodle_url('/mod/assign/view.php', ['id' => $instance->id, 'action' => 'grading']))->out(false),
+            );
+
+            $fs->create_file_from_string($filerecord, $message);
         }
         $s3submission = assignsubmission_s3::get_record([
             'usermodified' => $USER->id,

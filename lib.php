@@ -115,8 +115,11 @@ function assignsubmission_s3_pluginfile(
     $object->name = $file->get_filename();
     $object->mimetype = $file->get_mimetype();
     $object->uuid = $s3submission->get('uuid');
-    $presignedurl = $s3->retrieve_object($object)->getUri();
-
+    $object = $s3->retrieve_object($object);
+    if (!$object) {
+        send_file_not_found();
+    }
+    $presignedurl = $object->getUri();
     // Unlock session during file serving.
     manager::write_close();
 
