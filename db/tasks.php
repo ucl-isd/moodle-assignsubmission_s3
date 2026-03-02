@@ -35,13 +35,13 @@ $tasks = [
         'dayofweek' => '*',
         'month' => '*',
     ],
-    [
-        'classname' => 'assignsubmission_s3\task\object_tag',
-        'blocking' => 0,
-        'minute' => '0',
-        'hour' => '*',
-        'day' => '*',
-        'dayofweek' => '*',
-        'month' => '*',
-    ],
+//    [
+//        'classname' => 'assignsubmission_s3\task\object_tag',
+//        'blocking' => 0,
+//        'minute' => '0',
+//        'hour' => '*',
+//        'day' => '*',
+//        'dayofweek' => '*',
+//        'month' => '*',
+//    ],
 ];
