@@ -484,7 +484,7 @@ class assign_submission_s3 extends assign_submission_plugin {
             $message = get_string(
                 'file:string',
                 'assignsubmission_s3',
-                (new moodle_url('/mod/assign/view.php', ['id' => $instance->id, 'action' => 'grading']))->out(false),
+                (new moodle_url('/mod/assign/view.php', ['id' => $assignmentid, 'action' => 'grading']))->out(false),
             );
 
             $fs->create_file_from_string($filerecord, $message);
