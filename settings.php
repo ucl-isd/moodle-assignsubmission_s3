@@ -124,7 +124,7 @@ $settings->add(
         'assignsubmission_s3/default',
         new lang_string('setting:default', 'assignsubmission_s3'),
         new lang_string('setting:default_help', 'assignsubmission_s3'),
-        1,
+        0,
     )
 );
 
