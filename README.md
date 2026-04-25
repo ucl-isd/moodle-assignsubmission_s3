@@ -25,3 +25,6 @@ File retrieval option is available and managed from the plugin interface.
     }
 ]
 ```
+## Next up
+- The CORS policy could be refined
+- We have not yet tested the retrieval of submissions from Glacier aspect yet as it does take 90 days before files can be sent there, we will, as soon as our test files do reach this. If adopting early, you will want to make sure to follow this project to pull in any updates if we end up finding issues with this.
