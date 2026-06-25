@@ -40,6 +40,7 @@ $string['enabled_help'] = 'If enabled, students are able to upload one or more f
 $string['error:filesize'] = 'The max file size of {$a} has been exceeded.';
 $string['error:filetype'] = 'The file {$a} is an invalid file type.';
 $string['error:misconfigured'] = 'Force global is enabled, but the site settings are incorrect. Please contact the site administrator.';
+$string['error:pluginnotenabled'] = 'This plugin is not enabled for the specified assignment';
 $string['error:request'] = 'Unable to connect to S3, please contact the site administrator.';
 $string['event:assessable_uploaded:description'] = 'The user with id "{$a->userid}" has uploaded a file to the submission with id "{$a->objectid}" in the assignment activity with course module id "{$a->contextinstanceid}"';
 $string['event:connection_issue:description'] = 'The assignment activity with course module id "{$a->contextinstanceid}" was unable to connect with S3 due to the error: "{$a->error}"';

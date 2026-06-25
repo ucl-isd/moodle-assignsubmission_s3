@@ -32,10 +32,10 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
     /**
      * Init function to send the file to a pre-signed URL to S3.
      *
-     * @param {number} assignmentId
+     * @param {number} cmid
      * @param {number} chunkSize
      */
-    module.init = function(assignmentId, chunkSize) {
+    module.init = function(cmid, chunkSize) {
         // Get the various elements and containers.
         const form = document.querySelector('.editsubmissionform form');
         const statement = document.getElementById('id_submissionstatement');
@@ -60,7 +60,7 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
                 let request = ajax.call([{
                     methodname: 'assignsubmission_s3_get_multipart_upload',
                     args: {
-                        assignmentid: assignmentId,
+                        cmid: cmid,
                         filename: upload.name,
                         mimetype: upload.type,
                         filesize: upload.size
@@ -98,7 +98,7 @@ define(['core/notification', 'core/ajax'], function(notification, ajax) {
                             args: {
                                 filename: upload.name,
                                 mimetype: upload.type,
-                                assignmentid: assignmentId,
+                                cmid: cmid,
                                 parts: JSON.stringify(parts),
                                 uploadid: result.uploadid
                             }

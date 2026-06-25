@@ -22,7 +22,9 @@ global $CFG;
 require_once($CFG->dirroot . '/mod/assign/locallib.php');
 require_once($CFG->dirroot . '/mod/assign/submission/s3/locallib.php');
 
+use assign;
 use assign_submission_s3;
+use context_module;
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
@@ -44,7 +46,7 @@ class get_multipart_upload extends external_api {
      */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
-            'assignmentid' => new external_value(PARAM_INT, 'The assignment ID'),
+            'cmid' => new external_value(PARAM_INT, 'The course module ID'),
             'filename' => new external_value(PARAM_TEXT, 'The file name'),
             'mimetype' => new external_value(PARAM_TEXT, 'The file mime type'),
             'filesize' => new external_value(PARAM_TEXT, 'The file size'),
@@ -71,15 +73,58 @@ class get_multipart_upload extends external_api {
     /**
      * Execute the webservice call.
      *
-     * @param int $assignmentid
+     * @param int $cmid
      * @param string $filename
      * @param string $mimetype
      * @param string $filesize
      * @return array
      */
-    public static function execute(int $assignmentid, string $filename, string $mimetype, string $filesize): array {
+    public static function execute(int $cmid, string $filename, string $mimetype, string $filesize): array {
+        [
+            'cmid' => $cmid,
+            'filename' => $filename,
+            'mimetype' => $mimetype,
+            'filesize' => $filesize,
+        ] = self::validate_parameters(
+            self::execute_parameters(),
+            [
+                'cmid' => $cmid,
+                'filename' => $filename,
+                'mimetype' => $mimetype,
+                'filesize' => $filesize,
+            ]
+        );
+
+        // Security checks.
+        $context = context_module::instance($cmid);
+        self::validate_context($context);
+        require_capability('mod/assign:submit', $context);
+        $assign = new assign($context, null, null);
+
+        if (!$assign->submissions_open()) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('submissionnotopen', 'assign'),
+                's3urls' => [],
+                'uploadid' => '',
+            ];
+        }
+
+        $plugin = $assign->get_submission_plugin_by_type('s3');
+
+        if (!$plugin->get_config('enabled')) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('error:pluginnotenabled', 'assignsubmission_s3'),
+                's3urls' => [],
+                'uploadid' => '',
+            ];
+        }
 
         $error = assign_submission_s3::validate_submission($filename, $filesize);
+
         if (!empty($error)) {
             return [
                 'error' => true,
@@ -90,9 +135,9 @@ class get_multipart_upload extends external_api {
             ];
         }
 
-        $submission = assign_submission_s3::create_submission($assignmentid, $filename, $mimetype);
+        $submission = assign_submission_s3::create_submission($cmid, $filename, $mimetype);
 
-        [$error, $s3urls, $uploadid] = assign_submission_s3::generate_pre_signed($assignmentid, $submission, $filesize);
+        [$error, $s3urls, $uploadid] = assign_submission_s3::generate_pre_signed($cmid, $submission, $filesize);
 
         return [
             'error' => !empty($error),

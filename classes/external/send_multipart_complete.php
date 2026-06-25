@@ -48,7 +48,7 @@ class send_multipart_complete extends external_api {
      */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
-            'assignmentid' => new external_value(PARAM_INT, 'The assignment ID'),
+            'cmid' => new external_value(PARAM_INT, 'The course module ID'),
             'filename' => new external_value(PARAM_TEXT, 'The file name'),
             'mimetype' => new external_value(PARAM_TEXT, 'The file mime type'),
             'parts' => new external_value(PARAM_TEXT, 'JSON of all processed parts'),
@@ -72,36 +72,75 @@ class send_multipart_complete extends external_api {
     /**
      * Execute the webservice call.
      *
+     * @param int $cmid
      * @param string $filename
      * @param string $mimetype
-     * @param int $assignmentid
      * @param string $parts
      * @param string $uploadid
      * @return array
      */
     public static function execute(
-        int $assignmentid,
+        int $cmid,
         string $filename,
         string $mimetype,
         string $parts,
         string $uploadid,
     ): array {
-        $error = '';
+        [
+            'cmid' => $cmid,
+            'filename' => $filename,
+            'mimetype' => $mimetype,
+            'parts' => $parts,
+            'uploadid' => $uploadid,
+        ] = self::validate_parameters(
+            self::execute_parameters(),
+            [
+                'cmid' => $cmid,
+                'filename' => $filename,
+                'mimetype' => $mimetype,
+                'parts' => $parts,
+                'uploadid' => $uploadid,
+            ]
+        );
+
+        // Security checks.
+        $context = context_module::instance($cmid);
+        self::validate_context($context);
+        require_capability('mod/assign:submit', $context);
+        $assign = new assign($context, null, null);
+
+        if (!$assign->submissions_open()) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('submissionnotopen', 'assign'),
+            ];
+        }
+
+        $plugin = $assign->get_submission_plugin_by_type('s3');
+
+        if (!$plugin->get_config('enabled')) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('error:pluginnotenabled', 'assignsubmission_s3'),
+            ];
+        }
+
+        $errorstatus = ['error' => false];
+
         try {
-            $context = context_module::instance($assignmentid);
-            $assignment = new assign($context, null, null);
+            $submission = assign_submission_s3::create_submission($cmid, $filename, $mimetype);
 
-            $submission = assign_submission_s3::create_submission($assignmentid, $filename, $mimetype);
-
-            $s3 = new s3($assignment, null);
+            $s3 = new s3($assign, null);
             $s3->send_presigned_part_upload_complete_request($uploadid, $submission->get('uuid'), json_decode($parts, true));
         } catch (Exception $e) {
-            $error = $e->getMessage();
+            $errorstatus = [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => $e->getMessage(),
+            ];
         }
-        return [
-            'error' => !empty($error),
-            'error_title' => get_string('error'),
-            'error_msg' => $error,
-        ];
+        return $errorstatus;
     }
 }

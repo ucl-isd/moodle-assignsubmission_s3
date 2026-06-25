@@ -530,6 +530,7 @@ class assign_submission_s3 extends assign_submission_plugin {
         if ($s3->has_error()) {
             return [
                 $s3->get_error(),
+                [],
                 '',
             ];
         }
