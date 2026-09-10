@@ -107,7 +107,7 @@ final class submission_updated_test extends advanced_testcase {
         $this->assertEventContextNotUsed($event);
         $description = 'The user with id "' .
             $user->id .
-            '" updated an S3 file submission and uploaded a file in the assignment with course module id "' .
+            '" updated a Large file submission and uploaded a file in the assignment with course module id "' .
             $assign->get_course_module()->id .
             '"';
         $this->assertEquals($description, $event->get_description());
@@ -186,7 +186,7 @@ final class submission_updated_test extends advanced_testcase {
         $this->assertEventContextNotUsed($event);
         $description = 'The user with id "' .
             $user->id .
-            '" updated an S3 file submission and uploaded a file in the assignment with course module id "' .
+            '" updated a Large file submission and uploaded a file in the assignment with course module id "' .
             $assign->get_course_module()->id .
             '" for the group with id "' .
             $group->id .
