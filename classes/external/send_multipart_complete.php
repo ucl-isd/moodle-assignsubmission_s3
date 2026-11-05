@@ -49,8 +49,7 @@ class send_multipart_complete extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'cmid' => new external_value(PARAM_INT, 'The course module ID'),
-            'filename' => new external_value(PARAM_TEXT, 'The file name'),
-            'mimetype' => new external_value(PARAM_TEXT, 'The file mime type'),
+            'fileid' => new external_value(PARAM_INT, 'The Moodle file ID'),
             'parts' => new external_value(PARAM_TEXT, 'JSON of all processed parts'),
             'uploadid' => new external_value(PARAM_TEXT, 'The Upload ID'),
         ]);
@@ -73,31 +72,29 @@ class send_multipart_complete extends external_api {
      * Execute the webservice call.
      *
      * @param int $cmid
-     * @param string $filename
-     * @param string $mimetype
+     * @param int $fileid
      * @param string $parts
      * @param string $uploadid
      * @return array
      */
     public static function execute(
         int $cmid,
-        string $filename,
-        string $mimetype,
+        int $fileid,
         string $parts,
         string $uploadid,
     ): array {
+        global $USER;
+
         [
             'cmid' => $cmid,
-            'filename' => $filename,
-            'mimetype' => $mimetype,
+            'fileid' => $fileid,
             'parts' => $parts,
             'uploadid' => $uploadid,
         ] = self::validate_parameters(
             self::execute_parameters(),
             [
                 'cmid' => $cmid,
-                'filename' => $filename,
-                'mimetype' => $mimetype,
+                'fileid' => $fileid,
                 'parts' => $parts,
                 'uploadid' => $uploadid,
             ]
@@ -127,20 +124,35 @@ class send_multipart_complete extends external_api {
             ];
         }
 
-        $errorstatus = ['error' => false];
+        // The record and stub are pending until the upload has completed.
+        $s3submission = assignsubmission_s3::get_record([
+            'assignment' => $cmid,
+            'submission' => 0,
+            'fileid' => $fileid,
+            'usermodified' => $USER->id,
+        ]);
+        if (!$s3submission) {
+            return [
+                'error' => true,
+                'error_title' => get_string('error'),
+                'error_msg' => get_string('error:request', 'assignsubmission_s3'),
+            ];
+        }
 
         try {
-            $submission = assign_submission_s3::create_submission($cmid, $filename, $mimetype);
-
             $s3 = new s3($assign, null);
-            $s3->send_presigned_part_upload_complete_request($uploadid, $submission->get('uuid'), json_decode($parts, true));
+            $s3->send_presigned_part_upload_complete_request($uploadid, $s3submission->get('uuid'), json_decode($parts, true));
         } catch (Exception $e) {
-            $errorstatus = [
+            return [
                 'error' => true,
                 'error_title' => get_string('error'),
                 'error_msg' => $e->getMessage(),
             ];
         }
-        return $errorstatus;
+
+        // Only now the file is in the bucket do we create the assignment submission (if required) and attach to it.
+        assign_submission_s3::complete_submission($cmid, $s3submission);
+
+        return ['error' => false];
     }
 }
