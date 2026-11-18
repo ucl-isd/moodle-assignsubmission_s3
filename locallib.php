@@ -475,11 +475,18 @@ class assign_submission_s3 extends assign_submission_plugin {
     public function submission_is_empty(stdClass $data): bool {
         global $USER;
 
+        $instance = $this->assignment->get_instance();
+        if ($instance->teamsubmission) {
+            $submission = $this->assignment->get_group_submission($USER->id, 0, false);
+        } else {
+            $submission = $this->assignment->get_user_submission($USER->id, false);
+        }
+        if (!$submission) {
+            return true;
+        }
         // Pending records (submission of 0) are uploads that never completed, so don't count.
-        return !assignsubmission_s3::count_records_select(
-            'usermodified = ? AND assignment = ? AND submission <> 0',
-            [$USER->id, $this->assignment->get_course_module()->id],
-        );
+        $records = assignsubmission_s3::get_records(['submission' => $submission->id]);
+        return empty($records);
     }
 
     /**
@@ -500,7 +507,34 @@ class assign_submission_s3 extends assign_submission_plugin {
      * @return string
      */
     public function view_summary(stdClass $submissionorgrade, &$showviewlink): string {
-        return $this->assignment->render_area_files('assignsubmission_s3', self::FILEAREA, $submissionorgrade->id);
+        $fs = get_file_storage();
+        $files = $fs->get_area_files(
+            $this->assignment->get_context()->id,
+            self::FILECOMPONENT,
+            self::FILEAREA,
+            $submissionorgrade->id,
+            'timemodified',
+            false
+        );
+
+        if (empty($files)) {
+            return '';
+        }
+
+        $output = html_writer::start_tag('ul');
+        foreach ($files as $file) {
+            $url = moodle_url::make_pluginfile_url(
+                $file->get_contextid(),
+                $file->get_component(),
+                $file->get_filearea(),
+                $file->get_itemid(),
+                $file->get_filepath(),
+                $file->get_filename(),
+            );
+            $output .= html_writer::tag('li', html_writer::link($url, $file->get_filename()));
+        }
+        $output .= html_writer::end_tag('ul');
+        return $output;
     }
 
     /**

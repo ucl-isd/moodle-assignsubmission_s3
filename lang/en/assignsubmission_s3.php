@@ -71,9 +71,16 @@ $string['glacier:requested'] = 'The submission file has been requested. You will
 $string['message:restored:body'] = 'The file that you requested is now available for download. See further information and links below:
 * Course: {$a->course}
 * Assignment: {$a->assignment}
-* File: <a href="{$a->link}">{$a->link}</a>
+* File: {$a->link}
 * Available until: {$a->expiry}
 ';
+$string['message:restored:body:html'] = '<p>The file that you requested is now available for download. See further information and links below:</p>
+<ul>
+<li><strong>Course:</strong> {$a->course}</li>
+<li><strong>Assignment:</strong> {$a->assignment}</li>
+<li><strong>File:</strong> <a href="{$a->link}">{$a->link}</a></li>
+<li><strong>Available until:</strong> {$a->expiry}</li>
+</ul>';
 $string['message:restored:subject'] = 'Requested submission file is available for download.';
 $string['messageprovider:restored'] = 'Notification submission file has been restored.';
 $string['pluginname'] = 'Large file submissions';

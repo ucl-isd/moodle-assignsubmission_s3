@@ -32,6 +32,7 @@ require_once(dirname(__FILE__, 5) . '/config.php');
 
 $id = required_param('id', PARAM_INT);
 $confirm = optional_param('confirm', false, PARAM_BOOL);
+$returnurl = optional_param('returnurl', null, PARAM_LOCALURL);
 
 // Load the data and check that the assign data is valid and user has permission.
 $s3submission = new assignsubmission_s3($id);
@@ -68,6 +69,7 @@ $params = [
 ];
 $requestedcount = assignsubmission_s3_requests::count_records($params);
 $assignurl = new moodle_url('/mod/assign/view.php', ['id' => $assign->get_course_module()->id]);
+$redirecturl = $returnurl ? new moodle_url($returnurl) : $assignurl;
 
 if ($confirm) {
     if (!$s3submission->is_requested()) {
@@ -87,30 +89,35 @@ if ($confirm) {
         'other' => [],
         'relateduserid' => $USER->id,
     ])->trigger();
-    // Redirect beck to the assignment page.
-    redirect($assignurl, get_string('glacier:requested', 'assignsubmission_s3'), null, notification::NOTIFY_SUCCESS);
+    // Redirect back to where the user came from.
+    redirect($redirecturl, get_string('glacier:requested', 'assignsubmission_s3'), null, notification::NOTIFY_SUCCESS);
 }
 if ($s3submission->is_requested()) {
     // Already requested so check if the user needs or will be notified.
     if ($requestedcount > 0) {
         // Redirect.
-        redirect($assignurl, get_string('glacier:already_requested', 'assignsubmission_s3'));
+        redirect($redirecturl, get_string('glacier:already_requested', 'assignsubmission_s3'));
     } else {
         $message = get_string('glacier:confirm:notified', 'assignsubmission_s3');
     }
 } else if ($s3submission->is_restored()) {
     // File has already been restored so redirect back with a message.
     // Shouldn't happen, but better to catch this just in case.
-    redirect($assignurl, get_string('glacier:already_restored', 'assignsubmission_s3'), null, notification::NOTIFY_SUCCESS);
+    redirect($redirecturl, get_string('glacier:already_restored', 'assignsubmission_s3'), null, notification::NOTIFY_SUCCESS);
 } else {
     $message = get_string('glacier:confirm', 'assignsubmission_s3');
+}
+
+$confirmparams = ['sesskey' => sesskey(), 'confirm' => 1, 'id' => $id];
+if ($returnurl) {
+    $confirmparams['returnurl'] = $returnurl;
 }
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('glacier:heading', 'assignsubmission_s3'));
 echo $OUTPUT->confirm(
     $message,
-    new moodle_url('/mod/assign/submission/s3/glacier.php', ['sesskey' => sesskey(), 'confirm' => 1, 'id' => $id]),
-    $assignurl,
+    new moodle_url('/mod/assign/submission/s3/glacier.php', $confirmparams),
+    $redirecturl,
 );
 echo $OUTPUT->footer();

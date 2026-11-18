@@ -124,22 +124,19 @@ class assignsubmission_s3 extends persistent {
         $return = [];
         $cms = [];
 
-        // Get all standard records since.
-        $records = $DB->get_records_select(
-            self::TABLE,
-            'timemodified < ? AND status = ?',
-            [
-                $time,
-                self::STATUS_REMOTE_STANDARD,
-            ],
-        );
+        // Get all standard records since, joining assign_submission to get the actual submitter userid.
+        $sql = "SELECT s3.*, sub.userid
+                  FROM {" . self::TABLE . "} s3
+                  JOIN {assign_submission} sub ON sub.id = s3.submission
+                 WHERE s3.timemodified < ? AND s3.status = ?";
+        $records = $DB->get_records_sql($sql, [$time, self::STATUS_REMOTE_STANDARD]);
 
         foreach ($records as $record) {
             if (!isset($cms[$record->assignment])) {
                 [, $cm] = get_course_and_cm_from_cmid($record->assignment);
                 $cms[$record->assignment] = $cm;
             }
-            if (grade_is_user_graded_in_activity($cms[$record->assignment], $record->usermodified)) {
+            if (grade_is_user_graded_in_activity($cms[$record->assignment], $record->userid)) {
                 $return[] = new static(0, $record);
             }
         }

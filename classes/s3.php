@@ -179,7 +179,8 @@ class s3 {
                 $this->client->getCommand('GetObject', [
                     'Bucket' => $this->bucket,
                     'Key' => $object->uuid,
-                    'ResponseContentDisposition' => 'attachment; filename="' . $object->name . '"',
+                    'ResponseContentDisposition' => 'attachment; filename="' .
+                        rawurlencode($object->name) . '"; filename*=UTF-8\'\'' . rawurlencode($object->name),
                     'ResponseContentType' => $object->mimetype,
                 ]),
                 '+3 hour'
@@ -198,6 +199,7 @@ class s3 {
         $return = [
             'status' => false,
             'expiry-date' => null,
+            'standard-storage' => false,
         ];
 
         // Get the objects metadata.
@@ -206,6 +208,14 @@ class s3 {
             'Key' => $key,
         ]);
 
+        // Objects in STANDARD storage (e.g. small files <128KB that lifecycle rules skip) cannot be restored.
+        // Return early so the caller can reset the Moodle status back to standard.
+        $glacierclasses = ['GLACIER', 'DEEP_ARCHIVE'];
+        if (!in_array($head['StorageClass'] ?? 'STANDARD', $glacierclasses)) {
+            $return['standard-storage'] = true;
+            return $return;
+        }
+
         // If we have a restore in progress or requested it will come back in the head.
         if (isset($head['Restore'])) {
             // We already have a restore in progress.
@@ -213,10 +223,16 @@ class s3 {
                 $return['status'] = true;
                 return $return;
             }
-            // The restore was completed and expiration date is in the future, so return the expiration date.
-            if (str_contains($head['Restore'], 'ongoing-request="false"') && strtotime($head['Expires']) >= time()) {
+            // The restore was completed; extract the expiry date from the Restore header value itself,
+            // e.g. ongoing-request="false", expiry-date="Fri, 13 Nov 2026 00:00:00 GMT"
+            if (
+                str_contains($head['Restore'], 'ongoing-request="false"') &&
+                preg_match('/expiry-date="([^"]+)"/', $head['Restore'], $matches) &&
+                ($expiry = strtotime($matches[1])) !== false &&
+                $expiry >= time()
+            ) {
                 $return['status'] = true;
-                $return['expiry-date'] = strtotime($head['Expires']);
+                $return['expiry-date'] = $expiry;
                 return $return;
             }
         }
@@ -233,6 +249,7 @@ class s3 {
             ]);
         } catch (S3Exception $e) {
             $this->trigger_error_event("Restore object failed: {$e->getMessage()}");
+            return $return;
         }
         $statuscode = $result['@metadata']['statusCode'];
         // Action is either already processed or accepted, either way, valid.

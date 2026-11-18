@@ -51,6 +51,8 @@ class object_restore extends scheduled_task {
      * @return void
      */
     public function execute(?MockHandler $handler = null): void {
+        $haserrors = false;
+
         // Get all requested items: STATUS_REMOTE_REQUESTED.
         $requestedobjects = assignsubmission_s3::get_requested();
 
@@ -59,9 +61,22 @@ class object_restore extends scheduled_task {
             $s3 = new s3($requestedobject->get_assign(), $handler);
             if ($s3->has_error()) {
                 mtrace($s3->get_error());
-                return;
+                $haserrors = true;
+                continue;
             }
             $restored = $s3->restore_object($requestedobject->get('uuid'));
+            if ($s3->has_error()) {
+                mtrace("Unable to restore object {$requestedobject->get('uuid')} due to: {$s3->get_error()}");
+                $haserrors = true;
+                continue;
+            }
+            if ($restored['standard-storage']) {
+                // Object is still in STANDARD storage (e.g. <128KB, skipped by S3 lifecycle rules).
+                // Reset to standard status so it can be downloaded directly.
+                mtrace("Object: {$requestedobject->get('uuid')} is in STANDARD storage, resetting status");
+                $requestedobject->set('status', assignsubmission_s3::STATUS_REMOTE_STANDARD)->save();
+                continue;
+            }
             if ($restored['status']) {
                 // If restored and have an expiration date update status to restored and add an expiration date.
                 if ($restored['expiry-date']) {
@@ -73,35 +88,37 @@ class object_restore extends scheduled_task {
                     $requestedobject->save();
                     // Notify all requesters that the file is ready to be downloaded.
                     $requests = assignsubmission_s3_requests::get_records(['ass3id' => $requestedobject->get('id')]);
-                    $messagesubject = get_string('message:restored:subject', 'assignsubmission_s3');
                     $assign = $requestedobject->get_assign();
                     $url = new moodle_url('/mod/assign/view.php', ['id' => $assign->get_course_module()->id]);
-                    $messagebody = get_string(
-                        'message:restored:body',
-                        'assignsubmission_s3',
-                        [
-                            'course' => $assign->get_course()->fullname,
-                            'assignment' => $assign->get_course_module()->get_name(),
-                            'link' => $url->out(),
-                            'expiry' => userdate($restored['expiry-date']),
-                        ],
-                    );
+                    $a = (object) [
+                        'course' => $assign->get_course()->fullname,
+                        'assignment' => $assign->get_course_module()->get_name(),
+                        'link' => $url->out(),
+                        'expiry' => userdate($restored['expiry-date']),
+                    ];
                     $message = new message();
                     $message->component = 'assignsubmission_s3';
                     $message->name = 'restored';
                     $message->userfrom = core_user::get_noreply_user();
-                    $message->subject = $messagesubject;
-                    $message->fullmessagehtml = $messagebody;
+                    $message->subject = get_string('message:restored:subject', 'assignsubmission_s3');
+                    $message->fullmessagehtml = get_string('message:restored:body:html', 'assignsubmission_s3', $a);
                     $message->fullmessageformat = FORMAT_HTML;
-                    $message->fullmessage = html_to_text($messagebody);
+                    $message->fullmessage = get_string('message:restored:body', 'assignsubmission_s3', $a);
+                    $message->smallmessage = get_string('message:restored:subject', 'assignsubmission_s3');
+                    $message->contexturl = $url->out(false);
+                    $message->contexturlname = $assign->get_course_module()->get_name();
                     foreach ($requests as $request) {
-                        $message->userto = $request->get('requester');
+                        $message->userto = core_user::get_user($request->get('requester'));
                         message_send($message);
                     }
                 } else {
                     mtrace("Object: {$requestedobject->get('uuid')} restore in progress");
                 }
             }
+        }
+
+        if ($haserrors) {
+            throw new \moodle_exception('error', 'assignsubmission_s3', '', 'One or more objects failed to restore. See task log for details.');
         }
 
         // Get all restored items: STATUS_REMOTE_RESTORED.

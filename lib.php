@@ -103,7 +103,12 @@ function assignsubmission_s3_pluginfile(
 
     // If the item is in glacier storage or in progress, redirect to confirmation page to retrieve it.
     if ($s3submission->is_glacier() || $s3submission->is_requested()) {
-        redirect(new moodle_url('/mod/assign/submission/s3/glacier.php', ['id' => $s3submission->get('id')]));
+        $glacierurl = new moodle_url('/mod/assign/submission/s3/glacier.php', ['id' => $s3submission->get('id')]);
+        $returnurl = get_local_referer(false);
+        if ($returnurl) {
+            $glacierurl->param('returnurl', $returnurl);
+        }
+        redirect($glacierurl);
     }
 
     $s3 = new \assignsubmission_s3\s3($assign);
