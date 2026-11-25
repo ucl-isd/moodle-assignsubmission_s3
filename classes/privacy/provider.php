@@ -131,9 +131,9 @@ class provider implements
      * @param assign_plugin_request_data $requestdata Information to use to delete user data for this submission.
      */
     public static function delete_submission_for_context(assign_plugin_request_data $requestdata) {
-        // Delete records from assignsubmission_file table.
+        // Delete records from assignsubmission_s3 table. The assignment column stores the course module id.
         $s3submissions = assignsubmission_s3::get_records([
-            'assignment' => $requestdata->get_assign()->get_instance()->id,
+            'assignment' => $requestdata->get_assign()->get_course_module()->id,
         ]);
         foreach ($s3submissions as $s3submission) {
             $s3submission->delete();
