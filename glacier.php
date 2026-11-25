@@ -70,6 +70,7 @@ $requestedcount = assignsubmission_s3_requests::count_records($params);
 $assignurl = new moodle_url('/mod/assign/view.php', ['id' => $assign->get_course_module()->id]);
 
 if ($confirm) {
+    require_sesskey();
     if (!$s3submission->is_requested()) {
         // Set the status of the submission to requested.
         $s3submission->set('status', assignsubmission_s3::STATUS_REMOTE_REQUESTED);
